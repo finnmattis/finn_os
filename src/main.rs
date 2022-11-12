@@ -15,7 +15,7 @@ pub extern "C" fn _start() -> ! {
     #[cfg(test)]
     test_main();
 
-    loop {}
+    finn_os::hlt_loop();
 }
 
 /// This function is called on panic.
@@ -23,7 +23,7 @@ pub extern "C" fn _start() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
-    loop {}
+    finn_os::hlt_loop();
 }
 
 #[cfg(test)]
