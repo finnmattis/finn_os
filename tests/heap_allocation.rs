@@ -6,18 +6,16 @@
 
 extern crate alloc;
 
-use alloc::vec;
+use alloc::{boxed::Box, vec};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use finn_os::allocator;
+use finn_os::allocator::{self, HEAP_SIZE};
 use finn_os::memory::{self, BootInfoFrameAllocator};
-use finn_os::println;
 use x86_64::VirtAddr;
 
-entry_point!(kernel_main);
+entry_point!(main);
 
-fn kernel_main(boot_info: &'static BootInfo) -> ! {
-    println!("Hello World{}", "!");
+fn main(boot_info: &'static BootInfo) -> ! {
     finn_os::init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
@@ -26,30 +24,37 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    let x = vec![1, 2, 3];
-    println!("{:?}", x);
-
-    #[cfg(test)]
     test_main();
-
-    finn_os::hlt_loop();
+    loop {}
 }
 
-/// This function is called on panic.
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    finn_os::hlt_loop();
-}
-
-#[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     finn_os::test_panic_handler(info)
 }
 
 #[test_case]
-fn trivial_assertion() {
-    assert_eq!(1, 1);
+fn simple_allocation() {
+    let heap_value_1 = Box::new(41);
+    let heap_value_2 = Box::new(13);
+    assert_eq!(*heap_value_1, 41);
+    assert_eq!(*heap_value_2, 13);
+}
+
+#[test_case]
+fn large_vec() {
+    let n = 1000;
+    let mut vec = vec![];
+    for i in 0..n {
+        vec.push(i);
+    }
+    assert_eq!(vec.iter().sum::<u64>(), (n - 1) * n / 2);
+}
+
+#[test_case]
+fn many_boxes() {
+    for i in 0..HEAP_SIZE {
+        let x = Box::new(i);
+        assert_eq!(*x, i);
+    }
 }
