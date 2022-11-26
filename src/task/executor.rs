@@ -96,4 +96,9 @@ impl Executor {
             self.sleep_if_idle()
         }
     }
+
+    //Need access to run_ready_tasks to actually finish the test instead of looping endlessly
+    pub fn test_run(&mut self) {
+        self.run_ready_tasks()
+    }
 }
