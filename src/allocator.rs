@@ -63,7 +63,7 @@ pub struct Locked<A> {
 
 impl<A> Locked<A> {
     pub const fn new(inner: A) -> Self {
-        Locked {
+        Self {
             inner: spin::Mutex::new(inner),
         }
     }
