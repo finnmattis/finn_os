@@ -1,3 +1,4 @@
+use crate::task::keyboard_util::{DecodedKey, Keyboard};
 use crate::{print, println};
 use conquer_once::spin::OnceCell;
 use core::{
@@ -7,7 +8,6 @@ use core::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::stream::{Stream, StreamExt};
 use futures_util::task::AtomicWaker;
-use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
 
 //use OnceCell over lazy_static bc OnceCell type has the advantage that we can ensure that the initialization does not happen in the interrupt handler, thus preventing the interrupt handler from performing a heap allocation
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
@@ -64,12 +64,11 @@ pub(crate) fn add_scancode(scancode: u8) {
 
 pub async fn print_keypresses() {
     let mut scancodes = ScancodeStream::new();
-    //Scancode Set 1 = IMB XT
-    let mut keyboard = Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore);
-
+    // Scancode Set 1 = IMB XT
+    let mut keyboard = Keyboard::new();
     while let Some(scancode) = scancodes.next().await {
-        if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-            if let Some(key) = keyboard.process_keyevent(key_event) {
+        if let Ok(ev) = keyboard.get_key_ev(scancode) {
+            if let Some(key) = keyboard.process_key_ev(ev) {
                 match key {
                     DecodedKey::Unicode(character) => print!("{}", character),
                     DecodedKey::RawKey(key) => print!("{:?}", key),
