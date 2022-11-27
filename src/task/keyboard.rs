@@ -1,5 +1,5 @@
 use crate::task::keyboard_util::{DecodedKey, Keyboard};
-use crate::{print, println};
+use crate::{serial_print, serial_println};
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
@@ -53,12 +53,12 @@ impl Stream for ScancodeStream {
 pub(crate) fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
         if let Err(_) = queue.push(scancode) {
-            println!("WARNING: scancode queue full; dropping keyboard input");
+            serial_println!("WARNING: scancode queue full; dropping keyboard input");
         } else {
             WAKER.wake();
         }
     } else {
-        println!("WARNING: scancode queue uninitialized");
+        serial_println!("WARNING: scancode queue uninitialized");
     }
 }
 
@@ -70,8 +70,8 @@ pub async fn print_keypresses() {
         if let Ok(ev) = keyboard.get_key_ev(scancode) {
             if let Some(key) = keyboard.process_key_ev(ev) {
                 match key {
-                    DecodedKey::Unicode(character) => print!("{}", character),
-                    DecodedKey::RawKey(key) => print!("{:?}", key),
+                    DecodedKey::Unicode(character) => serial_print!("{}", character),
+                    DecodedKey::RawKey(key) => serial_print!("{:?}", key),
                 }
             }
         }

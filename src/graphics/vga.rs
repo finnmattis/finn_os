@@ -1,0 +1,228 @@
+use super::{
+    configuration::{VgaConfiguration, MODE_640X480X16_CONFIGURATION},
+    registers::{
+        AttributeControllerRegisters, ColorPaletteRegisters, CrtcControllerIndex,
+        CrtcControllerRegisters, EmulationMode, GeneralRegisters, GraphicsControllerRegisters,
+        SequencerRegisters,
+    },
+};
+use crate::graphics::{
+    colors::{Color16, DEFAULT_PALETTE},
+    lines::{Bresenham, Point},
+    registers::{PlaneMask, WriteMode},
+};
+use alloc::string::String;
+use conquer_once::spin::Lazy;
+use font8x8::UnicodeFonts;
+use spinning_top::Spinlock;
+
+/// The starting address for graphics modes.
+const FRAME_BUFFER: *mut u8 = 0xa0000 as *mut u8;
+const WIDTH: usize = 640;
+const HEIGHT: usize = 480;
+const SIZE: usize = (WIDTH * HEIGHT) / 8;
+const WIDTH_IN_BYTES: usize = WIDTH / 8;
+
+/// Provides mutable access to the vga graphics card.
+pub static VGA: Lazy<Spinlock<Vga>> = Lazy::new(|| Spinlock::new(Vga::new()));
+
+/// Represents a vga graphics card with it's common registers.
+pub struct Vga {
+    /// Represents the general registers on vga hardware.
+    pub general_registers: GeneralRegisters,
+    /// Represents the sequencer registers on vga hardware.
+    pub sequencer_registers: SequencerRegisters,
+    /// Represents the graphics controller registers on vga hardware.
+    pub graphics_controller_registers: GraphicsControllerRegisters,
+    /// Represents the attribute controller registers on vga hardware.
+    pub attribute_controller_registers: AttributeControllerRegisters,
+    /// Represents the crtc controller registers on vga hardware.
+    pub crtc_controller_registers: CrtcControllerRegisters,
+    /// Represents the color palette registers on vga hardware.
+    pub color_palette_registers: ColorPaletteRegisters,
+}
+
+impl Vga {
+    fn new() -> Vga {
+        Vga {
+            general_registers: GeneralRegisters::new(),
+            sequencer_registers: SequencerRegisters::new(),
+            graphics_controller_registers: GraphicsControllerRegisters::new(),
+            attribute_controller_registers: AttributeControllerRegisters::new(),
+            crtc_controller_registers: CrtcControllerRegisters::new(),
+            color_palette_registers: ColorPaletteRegisters::new(),
+        }
+    }
+
+    /// Sets the video card to Mode 640x480x16 and clears the screen.
+    pub fn setup(&mut self) {
+        self.set_registers(&MODE_640X480X16_CONFIGURATION);
+        // Some bios mess up the palette when switching modes,
+        // so explicitly set it.
+        self.color_palette_registers.load_palette(&DEFAULT_PALETTE);
+        self.clear_screen(Color16::Black);
+    }
+
+    /// Returns the current `EmulationMode` as determined by the miscellaneous output register.
+    pub fn get_emulation_mode(&mut self) -> EmulationMode {
+        EmulationMode::from(self.general_registers.read_msr() & 0x1)
+    }
+
+    /// Unlocks the CRTC registers by setting bit 7 to 0 `(value & 0x7F)`.
+    ///
+    /// `Protect Registers [0:7]`: Note that the ability to write to Bit 4 of the Overflow Register (CR07)
+    /// is not affected by this bit (i.e., bit 4 of the Overflow Register is always writeable).
+    ///
+    /// 0 = Enable writes to registers `CR[00:07]`
+    ///
+    /// 1 = Disable writes to registers `CR[00:07]`
+    fn unlock_crtc_registers(&mut self, emulation_mode: EmulationMode) {
+        // Setting bit 7 to 1 used to be required for `VGA`, but says it's
+        // ignored in modern hardware. Setting it to 1 just to be safe for older
+        // hardware. More information can be found here
+        // https://01.org/sites/default/files/documentation/intel-gfx-prm-osrc-hsw-display.pdf
+        // under `CR03 - Horizontal Blanking End Register`.
+        let horizontal_blanking_end = self
+            .crtc_controller_registers
+            .read(emulation_mode, CrtcControllerIndex::HorizontalBlankingEnd);
+        self.crtc_controller_registers.write(
+            emulation_mode,
+            CrtcControllerIndex::HorizontalBlankingEnd,
+            horizontal_blanking_end | 0x80,
+        );
+
+        let vertical_sync_end = self
+            .crtc_controller_registers
+            .read(emulation_mode, CrtcControllerIndex::VerticalSyncEnd);
+        self.crtc_controller_registers.write(
+            emulation_mode,
+            CrtcControllerIndex::VerticalSyncEnd,
+            vertical_sync_end & 0x7F,
+        );
+    }
+
+    fn set_registers(&mut self, configuration: &VgaConfiguration) {
+        let emulation_mode = self.get_emulation_mode();
+
+        // Set miscellaneous output
+        self.general_registers
+            .write_msr(configuration.miscellaneous_output);
+
+        // Set the sequencer registers.
+        for (index, value) in configuration.sequencer_registers {
+            self.sequencer_registers.write(*index, *value);
+        }
+
+        // Unlock the crtc registers.
+        self.unlock_crtc_registers(emulation_mode);
+
+        // Set the crtc registers.
+        for (index, value) in configuration.crtc_controller_registers {
+            self.crtc_controller_registers
+                .write(emulation_mode, *index, *value);
+        }
+
+        // Set the grx registers.
+        for (index, value) in configuration.graphics_controller_registers {
+            self.graphics_controller_registers.write(*index, *value);
+        }
+
+        // Blank the screen so the palette registers are unlocked.
+        self.attribute_controller_registers
+            .blank_screen(emulation_mode);
+
+        // Set the arx registers.
+        for (index, value) in configuration.attribute_controller_registers {
+            self.attribute_controller_registers
+                .write(emulation_mode, *index, *value);
+        }
+
+        // Unblank the screen so the palette registers are locked.
+        self.attribute_controller_registers
+            .unblank_screen(emulation_mode);
+    }
+
+    fn set_write_mode_0(&mut self, color: Color16) {
+        self.graphics_controller_registers.write_set_reset(color);
+        self.graphics_controller_registers
+            .write_enable_set_reset(0xF);
+        self.graphics_controller_registers
+            .set_write_mode(WriteMode::Mode0);
+    }
+
+    fn set_write_mode_2(&mut self) {
+        self.graphics_controller_registers
+            .set_write_mode(WriteMode::Mode2);
+        self.graphics_controller_registers.set_bit_mask(0xFF);
+        self.sequencer_registers
+            .set_plane_mask(PlaneMask::ALL_PLANES);
+    }
+
+    pub fn clear_screen(&mut self, color: Color16) {
+        self.set_write_mode_2();
+        unsafe {
+            FRAME_BUFFER.write_bytes(u8::from(color), SIZE);
+        }
+    }
+
+    #[inline]
+    fn _set_pixel(&mut self, x: usize, y: usize, color: Color16) {
+        let offset = x / 8 + y * WIDTH_IN_BYTES;
+        let pixel_mask = 0x80 >> (x & 0x07);
+        self.graphics_controller_registers.set_bit_mask(pixel_mask);
+        unsafe {
+            FRAME_BUFFER.add(offset).read_volatile();
+            FRAME_BUFFER.add(offset).write_volatile(u8::from(color));
+        }
+    }
+
+    pub fn draw_line(&mut self, start: Point<isize>, end: Point<isize>, color: Color16) {
+        self.set_write_mode_0(color);
+        for (x, y) in Bresenham::new(start, end) {
+            self._set_pixel(x as usize, y as usize, color);
+        }
+    }
+
+    pub fn draw_tri(
+        &mut self,
+        v1: Point<isize>,
+        v2: Point<isize>,
+        v3: Point<isize>,
+        color: Color16,
+    ) {
+        self.set_write_mode_0(color);
+        for (x, y) in Bresenham::new(v1, v2) {
+            self._set_pixel(x as usize, y as usize, color);
+        }
+        for (x, y) in Bresenham::new(v2, v3) {
+            self._set_pixel(x as usize, y as usize, color);
+        }
+        for (x, y) in Bresenham::new(v3, v1) {
+            self._set_pixel(x as usize, y as usize, color);
+        }
+    }
+
+    fn draw_character(&mut self, x: usize, y: usize, character: char, color: Color16) {
+        self.set_write_mode_2();
+        let character = match font8x8::BASIC_FONTS.get(character) {
+            Some(character) => character,
+            // Default to a filled block if the character isn't found
+            None => font8x8::unicode::BLOCK_UNICODE[8].byte_array(),
+        };
+
+        for (row, byte) in character.iter().enumerate() {
+            for bit in 0..8 {
+                match *byte & 1 << bit {
+                    0 => (),
+                    _ => self._set_pixel(x + bit, y + row, color),
+                }
+            }
+        }
+    }
+
+    pub fn draw_string(&mut self, x: usize, y: usize, string: String, color: Color16) {
+        for (offset, character) in string.chars().enumerate() {
+            self.draw_character(x + offset * 8, y, character, color)
+        }
+    }
+}
