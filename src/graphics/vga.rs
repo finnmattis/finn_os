@@ -176,14 +176,14 @@ impl Vga {
         }
     }
 
-    pub fn draw_line(&mut self, start: Point<isize>, end: Point<isize>, color: Color16) {
-        self.set_write_mode_0(color);
+    #[inline]
+    fn draw_line(&mut self, start: Point<isize>, end: Point<isize>, color: Color16) {
         for (x, y) in Bresenham::new(start, end) {
             self._set_pixel(x as usize, y as usize, color);
         }
     }
 
-    pub fn draw_tri(
+    pub fn draw_triangle(
         &mut self,
         v1: Point<isize>,
         v2: Point<isize>,
@@ -191,14 +191,97 @@ impl Vga {
         color: Color16,
     ) {
         self.set_write_mode_0(color);
-        for (x, y) in Bresenham::new(v1, v2) {
-            self._set_pixel(x as usize, y as usize, color);
+        self.draw_line(v1, v2, color);
+        self.draw_line(v2, v3, color);
+        self.draw_line(v3, v1, color);
+    }
+
+    fn fill_bottom_triangle(
+        &mut self,
+        v1: Point<isize>,
+        v2: Point<isize>,
+        v3: Point<isize>,
+        color: Color16,
+    ) {
+        let (x1, y1) = v1;
+        let (x2, y2) = v2;
+        let (x3, y3) = v3;
+
+        let invslope1 = (x2 - x1) as f32 / (y2 - y1) as f32;
+        let invslope2 = (x3 - x1) as f32 / (y3 - y1) as f32;
+
+        let mut curx1: f32 = x1 as f32;
+        let mut curx2: f32 = x1 as f32;
+
+        for i in y1..y2 {
+            self.draw_line((curx1 as isize, i), (curx2 as isize, i), color);
+            curx1 += invslope1;
+            curx2 += invslope2;
         }
-        for (x, y) in Bresenham::new(v2, v3) {
-            self._set_pixel(x as usize, y as usize, color);
+    }
+
+    fn fill_top_triangle(
+        &mut self,
+        v1: Point<isize>,
+        v2: Point<isize>,
+        v3: Point<isize>,
+        color: Color16,
+    ) {
+        let (x1, y1) = v1;
+        let (x2, y2) = v2;
+        let (x3, y3) = v3;
+
+        let invslope1 = (x3 - x1) as f32 / (y3 - y1) as f32;
+        let invslope2 = (x3 - x2) as f32 / (y3 - y2) as f32;
+
+        let mut curx1: f32 = x3 as f32;
+        let mut curx2: f32 = x3 as f32;
+
+        for i in (y1..y3).rev() {
+            self.draw_line((curx1 as isize, i), (curx2 as isize, i), color);
+            curx1 -= invslope1;
+            curx2 -= invslope2;
         }
-        for (x, y) in Bresenham::new(v3, v1) {
-            self._set_pixel(x as usize, y as usize, color);
+    }
+
+    pub fn fill_triangle(
+        &mut self,
+        inv1: Point<isize>,
+        inv2: Point<isize>,
+        inv3: Point<isize>,
+        color: Color16,
+    ) {
+        self.set_write_mode_0(color);
+        //Sort inv1, inv2, inv3 by y coordinate
+        let mut vertices = [inv1, inv2, inv3];
+        vertices.sort_by(|a, b| a.1.cmp(&b.1));
+        let v1 = vertices[0];
+        let v2 = vertices[1];
+        let v3 = vertices[2];
+        let (x1, y1) = v1;
+        let (_x2, y2) = v2;
+        let (x3, y3) = v3;
+
+        if y2 == y3 {
+            // Since verticies are sorted - this means bottom two must be parellell
+            self.fill_bottom_triangle(v1, v2, v3, color);
+            //
+        } else if y1 == y2 {
+            // Since verticies are sorted - this means top two must be parellell
+            self.fill_top_triangle(v1, v2, v3, color);
+        } else {
+            //general case - split the triangle in a topflat and bottom-flat one
+            //v4 has the same y coordinate as v2
+            //Find the x coordinate of v4
+            // x4 / x3 = y4 / y3
+            // x4 / x3 = y2 / y3
+            // (x4 - x1)/(x3-x1)=(y2-y1)(y3-y1)
+            // x4 = x1 + ((y2)/(y3-y1)) * (x3-x1)
+            let x = (x1 as f32 + ((y2 - y1) as f32 / (y3 - y1) as f32) * (x3 - x1) as f32) as isize;
+
+            let v4 = (x, y2);
+            self.fill_bottom_triangle(v1, v2, v4, color);
+            self.fill_top_triangle(v2, v4, v3, color);
         }
     }
 

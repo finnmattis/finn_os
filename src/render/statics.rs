@@ -1,4 +1,4 @@
-use crate::render::renderer::{Matrix4x4, Mesh, Triangle, Vertex};
+use crate::render::renderer::{Matrix4x4, Mesh, Triangle, Vector};
 use alloc::vec;
 use libm::{cosf, sinf};
 
@@ -8,17 +8,17 @@ pub(super) fn get_cube() -> Mesh {
             //SOUTH CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 0.0,
@@ -27,17 +27,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 0.0,
@@ -47,17 +47,17 @@ pub(super) fn get_cube() -> Mesh {
             //EAST CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
@@ -66,17 +66,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 1.0,
@@ -86,17 +86,17 @@ pub(super) fn get_cube() -> Mesh {
             //NORTH CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 1.0,
@@ -105,17 +105,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 1.0,
@@ -125,17 +125,17 @@ pub(super) fn get_cube() -> Mesh {
             //WEST CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 0.0,
@@ -144,17 +144,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 0.0,
@@ -164,17 +164,17 @@ pub(super) fn get_cube() -> Mesh {
             //TOP CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
@@ -183,17 +183,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 1.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 1.0,
                         z: 0.0,
@@ -203,17 +203,17 @@ pub(super) fn get_cube() -> Mesh {
             //BOTTOM CLOCKWISE
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 0.0,
@@ -222,17 +222,17 @@ pub(super) fn get_cube() -> Mesh {
             },
             Triangle {
                 p: [
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 1.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 0.0,
                         y: 0.0,
                         z: 0.0,
                     },
-                    Vertex {
+                    Vector {
                         x: 1.0,
                         y: 0.0,
                         z: 0.0,

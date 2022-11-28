@@ -25,7 +25,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     executor.spawn(Task::new(RENDERER.render()));
     executor.run();
 }
-
 /// This function is called on panic.
 #[cfg(not(test))]
 #[panic_handler]
