@@ -8,8 +8,7 @@ extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use finn_os::graphics::colors::Color16;
-use finn_os::graphics::vga::VGA;
+use finn_os::render::RENDERER;
 use finn_os::task::keyboard;
 use finn_os::task::{executor::Executor, Task};
 
@@ -21,11 +20,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
-    VGA.lock()
-        .draw_tri((100, 100), (200, 100), (150, 200), Color16::White);
-
     let mut executor = Executor::new();
     executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.spawn(Task::new(RENDERER.render()));
     executor.run();
 }
 

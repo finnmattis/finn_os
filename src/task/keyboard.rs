@@ -22,7 +22,7 @@ impl ScancodeStream {
         SCANCODE_QUEUE
             .try_init_once(|| ArrayQueue::new(100))
             .expect("ScancodeStream::new should only be called once");
-        ScancodeStream { _private: () }
+        Self { _private: () }
     }
 }
 

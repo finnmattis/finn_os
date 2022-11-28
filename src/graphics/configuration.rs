@@ -18,7 +18,7 @@ pub struct VgaConfiguration {
 }
 
 /// Register values for Vga mode 640x480x16 Graphics.
-pub const MODE_640X480X16_CONFIGURATION: VgaConfiguration = VgaConfiguration {
+pub const CONFIGURATION: VgaConfiguration = VgaConfiguration {
     // Configuration values acquired from https://www.singlix.com/trdos/archive/vga/Graphics%20in%20pmode.pdf
     // and https://forum.osdev.org/viewtopic.php?f=1&t=20137&hilit=640x480x16
     miscellaneous_output: 0xE3,

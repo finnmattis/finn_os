@@ -1,5 +1,5 @@
 use super::{
-    configuration::{VgaConfiguration, MODE_640X480X16_CONFIGURATION},
+    configuration::{VgaConfiguration, CONFIGURATION},
     registers::{
         AttributeControllerRegisters, ColorPaletteRegisters, CrtcControllerIndex,
         CrtcControllerRegisters, EmulationMode, GeneralRegisters, GraphicsControllerRegisters,
@@ -56,7 +56,7 @@ impl Vga {
 
     /// Sets the video card to Mode 640x480x16 and clears the screen.
     pub fn setup(&mut self) {
-        self.set_registers(&MODE_640X480X16_CONFIGURATION);
+        self.set_registers(&CONFIGURATION);
         // Some bios mess up the palette when switching modes,
         // so explicitly set it.
         self.color_palette_registers.load_palette(&DEFAULT_PALETTE);

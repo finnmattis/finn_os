@@ -1,5 +1,3 @@
-//! Common color structures used in vga programming.
-
 /// Represents the size of the vga palette in bytes.
 pub const PALETTE_SIZE: usize = 768;
 
@@ -44,29 +42,6 @@ pub enum Color16 {
 impl From<Color16> for u8 {
     fn from(value: Color16) -> u8 {
         value as u8
-    }
-}
-
-/// Represents a color for vga text modes.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(transparent)]
-pub struct TextModeColor(u8);
-
-impl TextModeColor {
-    /// Returns a new `TextModeColor` given the specified `foreground`
-    /// and `background` color.
-    pub const fn new(foreground: Color16, background: Color16) -> TextModeColor {
-        TextModeColor((background as u8) << 4 | (foreground as u8))
-    }
-
-    /// Sets the background color given the specified `background`;
-    pub fn set_background(&mut self, background: Color16) {
-        self.0 = (background as u8) << 4 | (self.0 & 0x0F);
-    }
-
-    /// Sets the foreground color given the specified `foreground`.
-    pub fn set_foreground(&mut self, foreground: Color16) {
-        self.0 = foreground as u8;
     }
 }
 

@@ -14,13 +14,14 @@ pub mod gdt;
 pub mod graphics;
 pub mod interrupts;
 pub mod memory;
+pub mod render;
 pub mod serial;
 pub mod task;
-// pub mod vga_buffer;
+pub mod timer;
 
 use bootloader::BootInfo;
 use core::panic::PanicInfo;
-use graphics::vga::VGA;
+use graphics::VGA;
 use memory::BootInfoFrameAllocator;
 use x86_64::VirtAddr;
 
