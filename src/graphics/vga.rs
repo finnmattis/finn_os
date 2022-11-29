@@ -66,6 +66,7 @@ impl Vga {
         // so explicitly set it.
         self.color_palette_registers.load_palette(&DEFAULT_PALETTE);
         self.clear_screen(Color16::Black as u8);
+        self.swap_buffers();
     }
 
     pub fn get_buffer(&self) -> *mut u8 {
@@ -151,7 +152,7 @@ impl Vga {
             .unblank_screen(emulation_mode);
     }
 
-    pub fn draw_screen(&self) {
+    pub fn swap_buffers(&self) {
         unsafe {
             copy_nonoverlapping(self.get_buffer(), FRAME_BUFFER, SIZE);
         }
@@ -248,7 +249,7 @@ impl Vga {
         let mut curx1: f32 = x3 as f32;
         let mut curx2: f32 = x3 as f32;
 
-        for i in (y1..y3).rev() {
+        for i in (y1..=y3).rev() {
             self.draw_line((curx1 as isize, i), (curx2 as isize, i), color);
             curx1 -= invslope1;
             curx2 -= invslope2;
@@ -265,9 +266,7 @@ impl Vga {
         //Sort inv1, inv2, inv3 by y coordinate
         let mut vertices = [inv1, inv2, inv3];
         vertices.sort_by(|a, b| a.1.cmp(&b.1));
-        let v1 = vertices[0];
-        let v2 = vertices[1];
-        let v3 = vertices[2];
+        let [v1, v2, v3] = vertices;
         let (x1, y1) = v1;
         let (_x2, y2) = v2;
         let (x3, y3) = v3;

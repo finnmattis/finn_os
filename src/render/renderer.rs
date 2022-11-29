@@ -206,7 +206,7 @@ impl Renderer {
             }
 
             // Swap buffers
-            VGA.lock().draw_screen();
+            VGA.lock().swap_buffers();
 
             sleep(1).await;
             iterations += 0.05;

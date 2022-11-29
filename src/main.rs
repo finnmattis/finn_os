@@ -8,6 +8,7 @@ extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use finn_os::graphics::VGA;
 use finn_os::render::RENDERER;
 use finn_os::task::keyboard;
 use finn_os::task::{executor::Executor, Task};
@@ -21,7 +22,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     test_main();
 
     let mut executor = Executor::new();
-    executor.spawn(Task::new(keyboard::print_keypresses()));
+    // executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.spawn(Task::new(RENDERER.render()));
     executor.run();
 }
