@@ -24,6 +24,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -43,6 +44,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             //EAST CLOCKWISE
             Triangle {
@@ -63,6 +65,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 1.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -82,6 +85,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 1.0,
                     },
                 ],
+                color: 0x00,
             },
             //NORTH CLOCKWISE
             Triangle {
@@ -102,6 +106,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 1.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -121,6 +126,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 1.0,
                     },
                 ],
+                color: 0x00,
             },
             //WEST CLOCKWISE
             Triangle {
@@ -141,6 +147,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -160,6 +167,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             //TOP CLOCKWISE
             Triangle {
@@ -180,6 +188,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 1.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -199,6 +208,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             //BOTTOM CLOCKWISE
             Triangle {
@@ -219,6 +229,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
             Triangle {
                 p: [
@@ -238,6 +249,7 @@ pub(super) fn get_cube() -> Mesh {
                         z: 0.0,
                     },
                 ],
+                color: 0x00,
             },
         ],
     }

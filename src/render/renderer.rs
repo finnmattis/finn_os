@@ -33,6 +33,7 @@ impl Vector {
 
 pub(super) struct Triangle {
     pub(super) p: [Vector; 3],
+    pub(super) color: u8,
 }
 
 pub(super) struct Mesh {
@@ -91,6 +92,12 @@ impl Renderer {
             },
             camera_vector: Vector::new(),
         }
+    }
+
+    fn get_color(lum: f32) -> u8 {
+        let brightness = (lum * 16 as f32) as u8;
+        // VGA default pallette sets 15 as white - 15-31 are grayscale colors
+        return brightness + 15;
     }
 
     pub async fn render(&self) {
@@ -161,6 +168,29 @@ impl Renderer {
 
                 //If dot product is negative, triangle is visible
                 if dot_product < 0.0 {
+                    //Illuminate
+                    let mut light_direction = Vector {
+                        x: 0.0,
+                        y: 0.0,
+                        z: -1.0,
+                    };
+
+                    let l = sqrtf(
+                        light_direction.x * light_direction.x
+                            + light_direction.y * light_direction.y
+                            + light_direction.z * light_direction.z,
+                    );
+
+                    light_direction.x /= l;
+                    light_direction.y /= l;
+                    light_direction.z /= l;
+
+                    let dp = normal.x * light_direction.x
+                        + normal.y * light_direction.y
+                        + normal.z * light_direction.z;
+
+                    let color = Self::get_color(dp);
+
                     // Project 3D --> 2D
                     v1 = self.proj_matrix.mult(&v1);
                     v2 = self.proj_matrix.mult(&v2);
@@ -190,18 +220,28 @@ impl Renderer {
                         y: v3.y,
                         z: v3.z,
                     };
-                    triangles_to_raster.push(Triangle { p: [p1, p2, p3] });
+                    triangles_to_raster.push(Triangle {
+                        p: [p1, p2, p3],
+                        color,
+                    });
                 }
             }
 
             // Draw triangles to double buffer
             VGA.lock().clear_screen(0x00);
+            //Sort triangles from back to front (painter's algorithm)
+            triangles_to_raster.sort_by(|a, b| {
+                let z1 = (a.p[0].z + a.p[1].z + a.p[2].z) / 3.0;
+                let z2 = (b.p[0].z + b.p[1].z + b.p[2].z) / 3.0;
+                z2.partial_cmp(&z1).unwrap()
+            });
+
             for tri in triangles_to_raster {
                 VGA.lock().fill_triangle(
                     (tri.p[0].x as isize, tri.p[0].y as isize),
                     (tri.p[1].x as isize, tri.p[1].y as isize),
                     (tri.p[2].x as isize, tri.p[2].y as isize),
-                    0x0F,
+                    tri.color,
                 );
             }
 
