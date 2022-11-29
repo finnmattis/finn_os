@@ -9,19 +9,24 @@ use super::{
 use crate::graphics::{
     colors::{Color16, DEFAULT_PALETTE},
     lines::{Bresenham, Point},
-    registers::{PlaneMask, WriteMode},
 };
-use alloc::string::String;
+use alloc::boxed::Box;
 use conquer_once::spin::Lazy;
+use core::ptr::copy_nonoverlapping;
 use font8x8::UnicodeFonts;
+use lazy_static::lazy_static;
 use spinning_top::Spinlock;
 
 /// The starting address for graphics modes.
 const FRAME_BUFFER: *mut u8 = 0xa0000 as *mut u8;
-const WIDTH: usize = 640;
-const HEIGHT: usize = 480;
-const SIZE: usize = (WIDTH * HEIGHT) / 8;
-const WIDTH_IN_BYTES: usize = WIDTH / 8;
+
+lazy_static! {
+    static ref DOUBLE_BUFFER: Box<[u8; 320 * 200]> = Box::new([0; 320 * 200]);
+}
+
+const WIDTH: usize = 320;
+const HEIGHT: usize = 200;
+const SIZE: usize = WIDTH * HEIGHT;
 
 /// Provides mutable access to the vga graphics card.
 pub static VGA: Lazy<Spinlock<Vga>> = Lazy::new(|| Spinlock::new(Vga::new()));
@@ -60,7 +65,11 @@ impl Vga {
         // Some bios mess up the palette when switching modes,
         // so explicitly set it.
         self.color_palette_registers.load_palette(&DEFAULT_PALETTE);
-        self.clear_screen(Color16::Black);
+        self.clear_screen(Color16::Black as u8);
+    }
+
+    pub fn get_buffer(&self) -> *mut u8 {
+        DOUBLE_BUFFER.as_ptr() as *mut u8
     }
 
     /// Returns the current `EmulationMode` as determined by the miscellaneous output register.
@@ -142,42 +151,45 @@ impl Vga {
             .unblank_screen(emulation_mode);
     }
 
-    fn set_write_mode_0(&mut self, color: Color16) {
-        self.graphics_controller_registers.write_set_reset(color);
-        self.graphics_controller_registers
-            .write_enable_set_reset(0xF);
-        self.graphics_controller_registers
-            .set_write_mode(WriteMode::Mode0);
-    }
-
-    fn set_write_mode_2(&mut self) {
-        self.graphics_controller_registers
-            .set_write_mode(WriteMode::Mode2);
-        self.graphics_controller_registers.set_bit_mask(0xFF);
-        self.sequencer_registers
-            .set_plane_mask(PlaneMask::ALL_PLANES);
-    }
-
-    pub fn clear_screen(&mut self, color: Color16) {
-        self.set_write_mode_2();
+    pub fn draw_screen(&self) {
         unsafe {
-            FRAME_BUFFER.write_bytes(u8::from(color), SIZE);
+            copy_nonoverlapping(self.get_buffer(), FRAME_BUFFER, SIZE);
+        }
+    }
+
+    pub fn clear_screen(&self, color: u8) {
+        unsafe {
+            self.get_buffer().write_bytes(color, SIZE);
         }
     }
 
     #[inline]
-    fn _set_pixel(&mut self, x: usize, y: usize, color: Color16) {
-        let offset = x / 8 + y * WIDTH_IN_BYTES;
-        let pixel_mask = 0x80 >> (x & 0x07);
-        self.graphics_controller_registers.set_bit_mask(pixel_mask);
+    fn _set_pixel(&self, x: usize, y: usize, color: u8) {
+        let offset = (y * WIDTH) + x;
         unsafe {
-            FRAME_BUFFER.add(offset).read_volatile();
-            FRAME_BUFFER.add(offset).write_volatile(u8::from(color));
+            self.get_buffer().add(offset).write_volatile(color);
+        }
+    }
+
+    fn draw_character(&mut self, x: usize, y: usize, character: char, color: u8) {
+        let character = match font8x8::BASIC_FONTS.get(character) {
+            Some(character) => character,
+            // Default to a filled block if the character isn't found
+            None => font8x8::unicode::BLOCK_UNICODE[8].byte_array(),
+        };
+
+        for (row, byte) in character.iter().enumerate() {
+            for bit in 0..8 {
+                match *byte & 1 << bit {
+                    0 => (),
+                    _ => self._set_pixel(x + bit, y + row, color),
+                }
+            }
         }
     }
 
     #[inline]
-    fn draw_line(&mut self, start: Point<isize>, end: Point<isize>, color: Color16) {
+    pub fn draw_line(&mut self, start: Point<isize>, end: Point<isize>, color: u8) {
         for (x, y) in Bresenham::new(start, end) {
             self._set_pixel(x as usize, y as usize, color);
         }
@@ -188,9 +200,8 @@ impl Vga {
         v1: Point<isize>,
         v2: Point<isize>,
         v3: Point<isize>,
-        color: Color16,
+        color: u8,
     ) {
-        self.set_write_mode_0(color);
         self.draw_line(v1, v2, color);
         self.draw_line(v2, v3, color);
         self.draw_line(v3, v1, color);
@@ -201,7 +212,7 @@ impl Vga {
         v1: Point<isize>,
         v2: Point<isize>,
         v3: Point<isize>,
-        color: Color16,
+        color: u8,
     ) {
         let (x1, y1) = v1;
         let (x2, y2) = v2;
@@ -225,7 +236,7 @@ impl Vga {
         v1: Point<isize>,
         v2: Point<isize>,
         v3: Point<isize>,
-        color: Color16,
+        color: u8,
     ) {
         let (x1, y1) = v1;
         let (x2, y2) = v2;
@@ -249,9 +260,8 @@ impl Vga {
         inv1: Point<isize>,
         inv2: Point<isize>,
         inv3: Point<isize>,
-        color: Color16,
+        color: u8,
     ) {
-        self.set_write_mode_0(color);
         //Sort inv1, inv2, inv3 by y coordinate
         let mut vertices = [inv1, inv2, inv3];
         vertices.sort_by(|a, b| a.1.cmp(&b.1));
@@ -282,30 +292,6 @@ impl Vga {
             let v4 = (x, y2);
             self.fill_bottom_triangle(v1, v2, v4, color);
             self.fill_top_triangle(v2, v4, v3, color);
-        }
-    }
-
-    fn draw_character(&mut self, x: usize, y: usize, character: char, color: Color16) {
-        self.set_write_mode_2();
-        let character = match font8x8::BASIC_FONTS.get(character) {
-            Some(character) => character,
-            // Default to a filled block if the character isn't found
-            None => font8x8::unicode::BLOCK_UNICODE[8].byte_array(),
-        };
-
-        for (row, byte) in character.iter().enumerate() {
-            for bit in 0..8 {
-                match *byte & 1 << bit {
-                    0 => (),
-                    _ => self._set_pixel(x + bit, y + row, color),
-                }
-            }
-        }
-    }
-
-    pub fn draw_string(&mut self, x: usize, y: usize, string: String, color: Color16) {
-        for (offset, character) in string.chars().enumerate() {
-            self.draw_character(x + offset * 8, y, character, color)
         }
     }
 }

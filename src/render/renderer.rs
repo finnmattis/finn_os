@@ -1,4 +1,3 @@
-use crate::graphics::Color16;
 use crate::graphics::VGA;
 use crate::timer::sleep;
 use alloc::vec::Vec;
@@ -12,8 +11,8 @@ lazy_static! {
     pub static ref RENDERER: Renderer = Renderer::new();
 }
 
-const WIDTH: f32 = 640.0;
-const HEIGHT: f32 = 480.0;
+const WIDTH: f32 = 320.0;
+const HEIGHT: f32 = 200.0;
 
 #[derive(Clone, Copy)]
 pub(super) struct Vector {
@@ -77,7 +76,7 @@ impl Renderer {
         let near: f32 = 0.5;
         let far: f32 = 1000.0;
         let fov: f32 = 90.0;
-        let aspect_ratio: f32 = 0.75; // 480/640
+        let aspect_ratio: f32 = HEIGHT / WIDTH;
         let fov_rad = 1.0 / tanf(fov * 0.5 / 180.0 * PI);
 
         Self {
@@ -195,17 +194,19 @@ impl Renderer {
                 }
             }
 
-            VGA.lock().clear_screen(Color16::Black);
-
-            // Draw triangles
+            // Draw triangles to double buffer
+            VGA.lock().clear_screen(0x00);
             for tri in triangles_to_raster {
                 VGA.lock().fill_triangle(
                     (tri.p[0].x as isize, tri.p[0].y as isize),
                     (tri.p[1].x as isize, tri.p[1].y as isize),
                     (tri.p[2].x as isize, tri.p[2].y as isize),
-                    Color16::Blue,
+                    0x0F,
                 );
             }
+
+            // Swap buffers
+            VGA.lock().draw_screen();
 
             sleep(1).await;
             iterations += 0.05;
