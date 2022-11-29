@@ -23,7 +23,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     let mut executor = Executor::new();
     // executor.spawn(Task::new(keyboard::print_keypresses()));
-    executor.spawn(Task::new(RENDERER.render()));
+    // executor.spawn(Task::new(RENDERER.render()));
     executor.run();
 }
 /// This function is called on panic.

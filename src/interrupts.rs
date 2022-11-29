@@ -1,6 +1,5 @@
 use crate::gdt;
 use crate::hlt_loop;
-use crate::serial_print;
 use crate::serial_println;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -83,7 +82,6 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    serial_print!(".");
     crate::timer::tick();
 
     unsafe {

@@ -2,13 +2,15 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use finn_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(main);
+
+fn main(_boot_info: &'static BootInfo) -> ! {
     serial_print!("stack_overflow::stack_overflow...\t");
 
     finn_os::gdt::init();

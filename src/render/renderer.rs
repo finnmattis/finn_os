@@ -253,3 +253,31 @@ impl Renderer {
         }
     }
 }
+#[cfg(test)]
+mod test {
+    use super::{Matrix4x4, Vector};
+
+    #[test_case]
+    fn test_matrix() {
+        let m1 = Matrix4x4 {
+            m: [
+                [1.0, 2.0, 3.0, 4.0],
+                [5.0, 6.0, 7.0, 8.0],
+                [9.0, 10.0, 11.0, 12.0],
+                [13.0, 14.0, 15.0, 16.0],
+            ],
+        };
+
+        let v1 = Vector {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+        };
+
+        let v2 = m1.mult(&v1);
+        //Check if correct result
+        assert_eq!(v2.x, 0.7083333);
+        assert_eq!(v2.y, 0.8055556);
+        assert_eq!(v2.z, 0.9027778);
+    }
+}

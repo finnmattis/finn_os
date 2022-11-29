@@ -7,7 +7,7 @@ use super::{
     },
 };
 use crate::graphics::{
-    colors::{Color16, DEFAULT_PALETTE},
+    colors::DEFAULT_PALETTE,
     lines::{Bresenham, Point},
 };
 use alloc::boxed::Box;
@@ -65,7 +65,7 @@ impl Vga {
         // Some bios mess up the palette when switching modes,
         // so explicitly set it.
         self.color_palette_registers.load_palette(&DEFAULT_PALETTE);
-        self.clear_screen(Color16::Black as u8);
+        self.clear_screen(104);
         self.swap_buffers();
     }
 
