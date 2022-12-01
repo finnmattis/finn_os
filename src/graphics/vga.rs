@@ -65,7 +65,7 @@ impl Vga {
         // Some bios mess up the palette when switching modes,
         // so explicitly set it.
         self.color_palette_registers.load_palette(&DEFAULT_PALETTE);
-        self.clear_screen(104);
+        self.clear_screen(0);
         self.swap_buffers();
     }
 

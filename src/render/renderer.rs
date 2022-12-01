@@ -1,11 +1,11 @@
+use super::geometry::*;
+use super::objects::SHIP;
 use crate::graphics::VGA;
 use crate::timer::sleep;
 use alloc::vec::Vec;
 use core::f32::consts::PI;
 use lazy_static::lazy_static;
-use libm::{sqrtf, tanf};
-
-use super::statics::{get_cube, get_rotation_matrix_x, get_rotation_matrix_z};
+use libm::tanf;
 
 lazy_static! {
     pub static ref RENDERER: Renderer = Renderer::new();
@@ -13,58 +13,6 @@ lazy_static! {
 
 const WIDTH: f32 = 320.0;
 const HEIGHT: f32 = 200.0;
-
-#[derive(Clone, Copy)]
-pub(super) struct Vector {
-    pub(super) x: f32,
-    pub(super) y: f32,
-    pub(super) z: f32,
-}
-
-impl Vector {
-    pub fn new() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
-    }
-}
-
-pub(super) struct Triangle {
-    pub(super) p: [Vector; 3],
-    pub(super) color: u8,
-}
-
-pub(super) struct Mesh {
-    pub(super) tris: Vec<Triangle>,
-}
-
-pub(super) struct Matrix4x4 {
-    pub(super) m: [[f32; 4]; 4],
-}
-
-impl Matrix4x4 {
-    pub fn new() -> Self {
-        Self { m: [[0.0; 4]; 4] }
-    }
-
-    pub fn mult(&self, i: &Vector) -> Vector {
-        let x = i.x * self.m[0][0] + i.y * self.m[1][0] + i.z * self.m[2][0] + self.m[3][0];
-        let y = i.x * self.m[0][1] + i.y * self.m[1][1] + i.z * self.m[2][1] + self.m[3][1];
-        let z = i.x * self.m[0][2] + i.y * self.m[1][2] + i.z * self.m[2][2] + self.m[3][2];
-        let w = i.x * self.m[0][3] + i.y * self.m[1][3] + i.z * self.m[2][3] + self.m[3][3];
-        if w != 0.0 {
-            Vector {
-                x: x / w,
-                y: y / w,
-                z: z / w,
-            }
-        } else {
-            Vector { x, y, z }
-        }
-    }
-}
 
 pub struct Renderer {
     mesh_cube: Mesh,
@@ -81,7 +29,7 @@ impl Renderer {
         let fov_rad = 1.0 / tanf(fov * 0.5 / 180.0 * PI);
 
         Self {
-            mesh_cube: get_cube(),
+            mesh_cube: Mesh::from_obj_file(SHIP),
             proj_matrix: Matrix4x4 {
                 m: [
                     [aspect_ratio * fov_rad, 0.0, 0.0, 0.0],
@@ -105,96 +53,75 @@ impl Renderer {
         loop {
             //Compute rotation matrices
             let theta: f32 = 1.0 * iterations;
-            let rotate_x = get_rotation_matrix_x(theta);
-            let rotate_z = get_rotation_matrix_z(theta);
+            let rotate_x_mat = Matrix4x4::create_rot_x(theta);
+            let rotate_z_mat = Matrix4x4::create_rot_z(theta);
+
+            let world_mat = Matrix4x4::mult(&rotate_x_mat, &rotate_z_mat);
 
             //Compute triangles to render
             let mut triangles_to_raster: Vec<Triangle> = Vec::new();
             for tri in self.mesh_cube.tris.iter() {
                 // Rotate in Z-Axis
-                let mut v1 = rotate_z.mult(&tri.p[0]);
-                let mut v2 = rotate_z.mult(&tri.p[1]);
-                let mut v3 = rotate_z.mult(&tri.p[2]);
-                // Rotate in X-Axis
-                v1 = rotate_x.mult(&v1);
-                v2 = rotate_x.mult(&v2);
-                v3 = rotate_x.mult(&v3);
+                let mut v1 = Matrix4x4::mult_vec(&world_mat, &tri.p[0]);
+                let mut v2 = Matrix4x4::mult_vec(&world_mat, &tri.p[1]);
+                let mut v3 = Matrix4x4::mult_vec(&world_mat, &tri.p[2]);
                 //Translate backwards in Z
                 v1 = Vector {
                     x: v1.x,
                     y: v1.y,
-                    z: v1.z + 3.0,
+                    z: v1.z + 10.0,
+                    w: 0.0,
                 };
                 v2 = Vector {
                     x: v2.x,
                     y: v2.y,
-                    z: v2.z + 3.0,
+                    z: v2.z + 10.0,
+                    w: 0.0,
                 };
                 v3 = Vector {
                     x: v3.x,
                     y: v3.y,
-                    z: v3.z + 3.0,
+                    z: v3.z + 10.0,
+                    w: 0.0,
                 };
-                //Get Normal
-                let mut l1 = Vector::new();
-                let mut l2 = Vector::new();
-                let mut normal = Vector::new();
 
                 //Calculate two lines of triangle
-                l1.x = v2.x - v1.x;
-                l1.y = v2.y - v1.y;
-                l1.z = v2.z - v1.z;
-
-                l2.x = v3.x - v1.x;
-                l2.y = v3.y - v1.y;
-                l2.z = v3.z - v1.z;
+                let l1 = Vector::sub(&v2, &v1);
+                let l2 = Vector::sub(&v3, &v1);
 
                 //Use cross product to get normal
-                normal.x = l1.y * l2.z - l1.z * l2.y;
-                normal.y = l1.z * l2.x - l1.x * l2.z;
-                normal.z = l1.x * l2.y - l1.y * l2.x;
+                let mut normal = Vector::cross(&l1, &l2);
 
-                //Normalize
-                let l = sqrtf(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-                normal.x /= l;
-                normal.y /= l;
-                normal.z /= l;
+                //Normalize normal
+                normal = Vector::norm(&normal);
 
-                //Get dot product of normal and vector from camera to triangle
-                //Note: can use v1 for each because all three points are in the same plane
-                let dot_product = normal.x * (v1.x - self.camera_vector.x)
-                    + normal.y * (v1.y - self.camera_vector.y)
-                    + normal.z * (v1.z - self.camera_vector.z);
+                //Get ray from camera to triangle
+                let camera_ray = Vector::sub(&v1, &self.camera_vector);
 
-                //If dot product is negative, triangle is visible
-                if dot_product < 0.0 {
+                //If ray is aligned with normal, then triangle is visible
+                if Vector::dot(&camera_ray, &normal) < 0.0 {
                     //Illuminate
                     let mut light_direction = Vector {
                         x: 0.0,
                         y: 0.0,
                         z: -1.0,
+                        w: 1.0,
                     };
+                    light_direction = Vector::norm(&light_direction);
 
-                    let l = sqrtf(
-                        light_direction.x * light_direction.x
-                            + light_direction.y * light_direction.y
-                            + light_direction.z * light_direction.z,
-                    );
-
-                    light_direction.x /= l;
-                    light_direction.y /= l;
-                    light_direction.z /= l;
-
-                    let dp = normal.x * light_direction.x
-                        + normal.y * light_direction.y
-                        + normal.z * light_direction.z;
-
+                    //How much light is hitting the triangle
+                    let dp = Vector::dot(&normal, &light_direction);
                     let color = Self::get_color(dp);
 
                     // Project 3D --> 2D
-                    v1 = self.proj_matrix.mult(&v1);
-                    v2 = self.proj_matrix.mult(&v2);
-                    v3 = self.proj_matrix.mult(&v3);
+                    v1 = Matrix4x4::mult_vec(&self.proj_matrix, &v1);
+                    v2 = Matrix4x4::mult_vec(&self.proj_matrix, &v2);
+                    v3 = Matrix4x4::mult_vec(&self.proj_matrix, &v3);
+
+                    v1 = Vector::div(&v1, &v1.w);
+                    v2 = Vector::div(&v2, &v2.w);
+                    v3 = Vector::div(&v3, &v3.w);
+
                     // Scale into view
                     v1.x += (v1.x + 1.0) * 0.5 * WIDTH as f32;
                     v1.y += (v1.y + 1.0) * 0.5 * HEIGHT as f32;
@@ -203,25 +130,8 @@ impl Renderer {
                     v3.x += (v3.x + 1.0) * 0.5 * WIDTH as f32;
                     v3.y += (v3.y + 1.0) * 0.5 * HEIGHT as f32;
 
-                    let p1 = Vector {
-                        x: v1.x,
-                        y: v1.y,
-                        z: v1.z,
-                    };
-
-                    let p2 = Vector {
-                        x: v2.x,
-                        y: v2.y,
-                        z: v2.z,
-                    };
-
-                    let p3 = Vector {
-                        x: v3.x,
-                        y: v3.y,
-                        z: v3.z,
-                    };
                     triangles_to_raster.push(Triangle {
-                        p: [p1, p2, p3],
+                        p: [v1, v2, v3],
                         color,
                     });
                 }
@@ -251,33 +161,5 @@ impl Renderer {
             sleep(1).await;
             iterations += 0.05;
         }
-    }
-}
-#[cfg(test)]
-mod test {
-    use super::{Matrix4x4, Vector};
-
-    #[test_case]
-    fn test_matrix() {
-        let m1 = Matrix4x4 {
-            m: [
-                [1.0, 2.0, 3.0, 4.0],
-                [5.0, 6.0, 7.0, 8.0],
-                [9.0, 10.0, 11.0, 12.0],
-                [13.0, 14.0, 15.0, 16.0],
-            ],
-        };
-
-        let v1 = Vector {
-            x: 1.0,
-            y: 2.0,
-            z: 3.0,
-        };
-
-        let v2 = m1.mult(&v1);
-        //Check if correct result
-        assert_eq!(v2.x, 0.7083333);
-        assert_eq!(v2.y, 0.8055556);
-        assert_eq!(v2.z, 0.9027778);
     }
 }

@@ -1,4 +1,5 @@
+mod geometry;
+mod objects;
 mod renderer;
-mod statics;
 
 pub use renderer::RENDERER;
