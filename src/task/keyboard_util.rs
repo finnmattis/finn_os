@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum KeyCode {
     AltLeft = 0,
     AltRight = 1,
@@ -107,15 +107,15 @@ pub enum KeyCode {
     Y = 113,
     Z = 114,
 }
-
+#[derive(Debug, PartialEq)]
 pub enum KeyState {
     Up,
     Down,
 }
-
+#[derive(Debug)]
 pub struct KeyEvent {
-    code: KeyCode,
-    state: KeyState,
+    pub code: KeyCode,
+    pub state: KeyState,
 }
 
 //KeyEvent useful for processing input

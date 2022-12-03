@@ -6,9 +6,12 @@ use super::{
         SequencerRegisters,
     },
 };
-use crate::graphics::{
-    colors::DEFAULT_PALETTE,
-    lines::{Bresenham, Point},
+use crate::{
+    graphics::{
+        colors::DEFAULT_PALETTE,
+        lines::{Bresenham, Point},
+    },
+    serial_println,
 };
 use alloc::boxed::Box;
 use conquer_once::spin::Lazy;
@@ -166,6 +169,10 @@ impl Vga {
 
     #[inline]
     fn _set_pixel(&self, x: usize, y: usize, color: u8) {
+        if x >= WIDTH || y >= HEIGHT {
+            return;
+        }
+
         let offset = (y * WIDTH) + x;
         unsafe {
             self.get_buffer().add(offset).write_volatile(color);
