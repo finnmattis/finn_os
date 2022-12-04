@@ -6,12 +6,9 @@ use super::{
         SequencerRegisters,
     },
 };
-use crate::{
-    graphics::{
-        colors::DEFAULT_PALETTE,
-        lines::{Bresenham, Point},
-    },
-    serial_println,
+use crate::graphics::{
+    colors::DEFAULT_PALETTE,
+    lines::{Bresenham, Point},
 };
 use alloc::boxed::Box;
 use conquer_once::spin::Lazy;

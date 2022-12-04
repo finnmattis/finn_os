@@ -99,8 +99,129 @@ impl Vector {
             w: 1.0,
         }
     }
+
+    pub(super) fn intersect_plane(
+        plane_point: Vector,
+        mut plane_normal: Vector,
+        line_start: Vector,
+        line_end: Vector,
+    ) -> Vector {
+        //Make sure plane normal is indeed normal
+        plane_normal = Vector::norm(&plane_normal);
+        let plane_d = -Vector::dot(&plane_normal, &plane_point);
+        let ad = Vector::dot(&line_start, &plane_normal);
+        let bd = Vector::dot(&line_end, &plane_normal);
+        let t = (-plane_d - ad) / (bd - ad);
+        let line_start_to_end = Vector::sub(&line_end, &line_start);
+        let line_to_intersect = Vector::mult_scaler(&line_start_to_end, &t);
+        Vector::add(&line_start, &line_to_intersect)
+    }
+
+    pub(super) fn clip_plane(
+        plane_point: Vector,
+        mut plane_normal: Vector,
+        in_tri: Triangle,
+    ) -> [Option<Triangle>; 2] {
+        //Make sure plane normal is indeed normal
+        plane_normal = Vector::norm(&plane_normal);
+
+        let dist = |v: &Vector| -> f32 {
+            Vector::dot(&plane_normal, v) - Vector::dot(&plane_normal, &plane_point)
+        };
+
+        //Create two temporary storage arrays to classify points either side of plane
+        //If distance sign is positive, point lies on "inside" of plane
+        let mut inside_points: [Vector; 3] = [Vector::new(); 3];
+        let mut outside_points: [Vector; 3] = [Vector::new(); 3];
+
+        //Get signed distance of each point in triangle to plane
+        let mut inside_point_count = 0;
+        let mut outside_point_count = 0;
+        let mut dists: [f32; 3] = [0.0; 3];
+        for i in 0..3 {
+            dists[i] = dist(&in_tri.p[i]);
+            if dists[i] >= 0.0 {
+                inside_points[inside_point_count] = in_tri.p[i];
+                inside_point_count += 1;
+            } else {
+                outside_points[outside_point_count] = in_tri.p[i];
+                outside_point_count += 1;
+            }
+        }
+        //return correct triangles
+        if inside_point_count == 0 {
+            //All points lie on the outside of plane, so clip whole triangle
+            //It ceases to exist
+            return [None, None];
+        }
+        if inside_point_count == 1 {
+            //Triangle should be clipped. As two points lie outside
+            //the plane, the triangle simply becomes a smaller triangle
+            let mut out_tri = Triangle::new();
+            out_tri.color = 1;
+
+            //The inside point is valid, so keep that...
+            out_tri.p[0] = inside_points[0];
+            //but the two new points are at the locations where the
+            //original sides of the triangle (lines) intersect with the plane
+            out_tri.p[1] = Vector::intersect_plane(
+                plane_point,
+                plane_normal,
+                inside_points[0],
+                outside_points[0],
+            );
+            out_tri.p[2] = Vector::intersect_plane(
+                plane_point,
+                plane_normal,
+                inside_points[0],
+                outside_points[1],
+            );
+            //Return the newly formed single triangle
+            return [Some(out_tri), None];
+        }
+        if inside_point_count == 2 {
+            //Triangle should be clipped. As two points lie inside the plane,
+            //the clipped triangle becomes a "quad". Fortunately, we can
+            //represent a quad with two new triangles
+            let mut out_tri1 = Triangle::new();
+            out_tri1.color = 2;
+            let mut out_tri2 = Triangle::new();
+            out_tri2.color = 4;
+            //The first triangle consists of the two inside points and a new
+            //point determined by the location where one side of the triangle
+            //intersected with the plane
+            out_tri1.p[0] = inside_points[0];
+            out_tri1.p[1] = inside_points[1];
+            out_tri1.p[2] = Vector::intersect_plane(
+                plane_point,
+                plane_normal,
+                inside_points[0],
+                outside_points[0],
+            );
+            //The second triangle is composed of one of he inside points, a
+            //new point determined by the intersection of the other side of the
+            //triangle and the plane, and the newly created point above
+            out_tri2.p[0] = inside_points[1];
+            out_tri2.p[1] = out_tri1.p[2];
+            out_tri2.p[2] = Vector::intersect_plane(
+                plane_point,
+                plane_normal,
+                inside_points[1],
+                outside_points[0],
+            );
+            //Return two newly formed triangles which form a quad
+            return [Some(out_tri1), Some(out_tri2)];
+        }
+        if inside_point_count == 3 {
+            //All points lie on the inside of plane, so do nothing
+            //and allow the triangle to simply pass through
+            return [Some(in_tri), None];
+        }
+
+        todo!()
+    }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct Triangle {
     pub(super) p: [Vector; 3],
     pub(super) color: u8,
@@ -132,8 +253,8 @@ impl Matrix4x4 {
         Self {
             m: [
                 [1.0, 0.0, 0.0, 0.0],
-                [0.0, cosf(theta * 0.5), -sinf(theta * 0.5), 0.0],
-                [0.0, sinf(theta * 0.5), cosf(theta * 0.5), 0.0],
+                [0.0, cosf(theta), -sinf(theta), 0.0],
+                [0.0, sinf(theta), cosf(theta), 0.0],
                 [0.0, 0.0, 0.0, 1.0],
             ],
         }

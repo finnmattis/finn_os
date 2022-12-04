@@ -40,35 +40,6 @@ pub fn get_scancode() -> Result<u8, PopError> {
     }
 }
 
-pub fn get_all_scancodes() -> Result<Vec<u8>, PopError> {
-    let queue = SCANCODE_QUEUE.try_get();
-    let mut codes = Vec::new();
-    if let Ok(queue) = queue {
-        while let Ok(code) = queue.pop() {
-            codes.push(code);
-        }
-        if codes.len() == 0 {
-            return Err(PopError);
-        } else {
-            Ok(codes)
-        }
-    } else {
-        SCANCODE_QUEUE
-            .try_init_once(|| ArrayQueue::new(100))
-            .expect("ScancodeStream::new should only be called once");
-        let queue = SCANCODE_QUEUE.try_get().unwrap();
-        //Try to get codes for race condition
-        while let Ok(code) = queue.pop() {
-            codes.push(code);
-        }
-        if codes.len() == 0 {
-            return Err(PopError);
-        } else {
-            Ok(codes)
-        }
-    }
-}
-
 static WAKER: AtomicWaker = AtomicWaker::new();
 pub struct ScancodeStream {
     _private: (), //field to prevent construction of the struct from outside of the module

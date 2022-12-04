@@ -1,8 +1,7 @@
 use super::geometry::*;
-use super::objects::{AXIS, SHIP};
+use super::objects::SHIP;
 use crate::graphics::VGA;
-use crate::serial_println;
-use crate::task::keyboard::{get_all_scancodes, SCANCODE_QUEUE};
+use crate::task::keyboard::SCANCODE_QUEUE;
 use crate::task::keyboard_util::{KeyCode, KeyState};
 use crate::task::keyboard_util::{KeyEvent, Keyboard};
 use crate::timer::sleep;
@@ -33,7 +32,7 @@ impl Renderer {
         let fov_rad = 1.0 / tanf(fov * 0.5 / 180.0 * PI);
 
         Self {
-            mesh: Mesh::from_obj_file(AXIS),
+            mesh: Mesh::from_obj_file(SHIP),
             proj_matrix: Matrix4x4 {
                 m: [
                     [aspect_ratio * fov_rad, 0.0, 0.0, 0.0],
@@ -186,16 +185,16 @@ impl Renderer {
             }
 
             if w_pressed {
-                camera_vector.y -= 1.0;
-            }
-            if a_pressed {
-                camera_vector.x -= 1.0;
-            }
-            if s_pressed {
                 camera_vector.y += 1.0;
             }
-            if d_pressed {
+            if a_pressed {
                 camera_vector.x += 1.0;
+            }
+            if s_pressed {
+                camera_vector.y -= 1.0;
+            }
+            if d_pressed {
+                camera_vector.x -= 1.0;
             }
             if up_pressed {
                 camera_vector = Vector::add(&camera_vector, &look_direction);
@@ -204,18 +203,18 @@ impl Renderer {
                 camera_vector = Vector::sub(&camera_vector, &look_direction);
             }
             if left_pressed {
-                yaw += 0.05;
+                yaw -= 0.05;
             }
             if right_pressed {
-                yaw -= 0.05;
+                yaw += 0.05;
             }
 
             //Compute world matrix (rotation and translation)
-            // let theta: f32 = 1.0 * iterations;
-            let theta: f32 = 1.0;
+            let theta: f32 = 1.0 * iterations;
+            let theta: f32 = 0.0;
             let rotate_x_mat = Matrix4x4::create_rot_x(theta);
-            let rotate_z_mat = Matrix4x4::create_rot_z(theta);
-            let trans_mat = Matrix4x4::create_translation(0.0, 0.0, 12.0);
+            let rotate_z_mat = Matrix4x4::create_rot_z(theta * 0.5);
+            let trans_mat = Matrix4x4::create_translation(0.0, 0.0, 10.0);
 
             let mut world_mat = Matrix4x4::mult(&rotate_x_mat, &rotate_z_mat);
             world_mat = Matrix4x4::mult(&world_mat, &trans_mat);
@@ -244,14 +243,15 @@ impl Renderer {
             //Compute triangles to render
             let mut triangles_to_raster: Vec<Triangle> = Vec::new();
             for tri in self.mesh.tris.iter() {
+                let mut new_tri = Triangle::new();
                 // Rotate in Z-Axis
-                let mut v1 = Matrix4x4::mult_vec(&world_mat, &tri.p[0]);
-                let mut v2 = Matrix4x4::mult_vec(&world_mat, &tri.p[1]);
-                let mut v3 = Matrix4x4::mult_vec(&world_mat, &tri.p[2]);
+                new_tri.p[0] = Matrix4x4::mult_vec(&world_mat, &tri.p[0]);
+                new_tri.p[1] = Matrix4x4::mult_vec(&world_mat, &tri.p[1]);
+                new_tri.p[2] = Matrix4x4::mult_vec(&world_mat, &tri.p[2]);
 
                 //Calculate two lines of triangle
-                let l1 = Vector::sub(&v2, &v1);
-                let l2 = Vector::sub(&v3, &v1);
+                let l1 = Vector::sub(&new_tri.p[1], &new_tri.p[0]);
+                let l2 = Vector::sub(&new_tri.p[2], &new_tri.p[0]);
 
                 //Use cross product to get normal
                 let mut normal = Vector::cross(&l1, &l2);
@@ -260,7 +260,7 @@ impl Renderer {
                 normal = Vector::norm(&normal);
 
                 //Get ray from camera to triangle
-                let camera_ray = Vector::sub(&v1, &camera_vector);
+                let camera_ray = Vector::sub(&new_tri.p[0], &camera_vector);
 
                 //If ray is aligned with normal, then triangle is visible
                 if Vector::dot(&camera_ray, &normal) < 0.0 {
@@ -275,34 +275,67 @@ impl Renderer {
 
                     //How much light is hitting the triangle
                     let dp = Vector::dot(&normal, &light_direction);
-                    let color = Self::get_color(dp);
+                    new_tri.color = Self::get_color(dp);
 
                     //Convert world space --> view space
-                    v1 = Matrix4x4::mult_vec(&view_mat, &v1);
-                    v2 = Matrix4x4::mult_vec(&view_mat, &v2);
-                    v3 = Matrix4x4::mult_vec(&view_mat, &v3);
+                    new_tri.p[0] = Matrix4x4::mult_vec(&view_mat, &new_tri.p[0]);
+                    new_tri.p[1] = Matrix4x4::mult_vec(&view_mat, &new_tri.p[1]);
+                    new_tri.p[2] = Matrix4x4::mult_vec(&view_mat, &new_tri.p[2]);
 
-                    // Project 3D --> 2D
-                    v1 = Matrix4x4::mult_vec(&self.proj_matrix, &v1);
-                    v2 = Matrix4x4::mult_vec(&self.proj_matrix, &v2);
-                    v3 = Matrix4x4::mult_vec(&self.proj_matrix, &v3);
+                    //Clip triangles against near plane
+                    let front_cam = Vector {
+                        x: 0.0,
+                        y: 0.0,
+                        z: 1.0,
+                        w: 1.0,
+                    };
+                    let normal = Vector {
+                        x: 0.0,
+                        y: 0.0,
+                        z: 1.0,
+                        w: 1.0,
+                    };
 
-                    v1 = Vector::div_scaler(&v1, &v1.w);
-                    v2 = Vector::div_scaler(&v2, &v2.w);
-                    v3 = Vector::div_scaler(&v3, &v3.w);
+                    let clipped: [Option<Triangle>; 2] =
+                        Vector::clip_plane(front_cam, normal, new_tri);
 
-                    // Scale into view
-                    v1.x += (v1.x + 1.0) * 0.5 * WIDTH as f32;
-                    v1.y += (v1.y + 1.0) * 0.5 * HEIGHT as f32;
-                    v2.x += (v2.x + 1.0) * 0.5 * WIDTH as f32;
-                    v2.y += (v2.y + 1.0) * 0.5 * HEIGHT as f32;
-                    v3.x += (v3.x + 1.0) * 0.5 * WIDTH as f32;
-                    v3.y += (v3.y + 1.0) * 0.5 * HEIGHT as f32;
+                    for clipped_tri in clipped {
+                        if let Some(mut clipped_tri) = clipped_tri {
+                            // Project 3D --> 2D
+                            clipped_tri.p[0] =
+                                Matrix4x4::mult_vec(&self.proj_matrix, &clipped_tri.p[0]);
+                            clipped_tri.p[1] =
+                                Matrix4x4::mult_vec(&self.proj_matrix, &clipped_tri.p[1]);
+                            clipped_tri.p[2] =
+                                Matrix4x4::mult_vec(&self.proj_matrix, &clipped_tri.p[2]);
 
-                    triangles_to_raster.push(Triangle {
-                        p: [v1, v2, v3],
-                        color,
-                    });
+                            // normalising is in cartesian space so we need to divide by w
+                            clipped_tri.p[0] =
+                                Vector::div_scaler(&clipped_tri.p[0], &clipped_tri.p[0].w);
+                            clipped_tri.p[1] =
+                                Vector::div_scaler(&clipped_tri.p[1], &clipped_tri.p[1].w);
+                            clipped_tri.p[2] =
+                                Vector::div_scaler(&clipped_tri.p[2], &clipped_tri.p[2].w);
+
+                            // X/Y are inverted so put them back
+                            clipped_tri.p[0].x *= -1.0;
+                            clipped_tri.p[1].x *= -1.0;
+                            clipped_tri.p[2].x *= -1.0;
+                            clipped_tri.p[0].y *= -1.0;
+                            clipped_tri.p[1].y *= -1.0;
+                            clipped_tri.p[2].y *= -1.0;
+
+                            // Scale into view
+                            clipped_tri.p[0].x += (clipped_tri.p[0].x + 1.0) * 0.5 * WIDTH as f32;
+                            clipped_tri.p[0].y += (clipped_tri.p[0].y + 1.0) * 0.5 * HEIGHT as f32;
+                            clipped_tri.p[1].x += (clipped_tri.p[1].x + 1.0) * 0.5 * WIDTH as f32;
+                            clipped_tri.p[1].y += (clipped_tri.p[1].y + 1.0) * 0.5 * HEIGHT as f32;
+                            clipped_tri.p[2].x += (clipped_tri.p[2].x + 1.0) * 0.5 * WIDTH as f32;
+                            clipped_tri.p[2].y += (clipped_tri.p[2].y + 1.0) * 0.5 * HEIGHT as f32;
+
+                            triangles_to_raster.push(clipped_tri);
+                        }
+                    }
                 }
             }
 
@@ -315,13 +348,114 @@ impl Renderer {
                 z2.partial_cmp(&z1).unwrap()
             });
 
+            //top screen plane
+            let mut top_screen_plane = Vector {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                w: 1.0,
+            };
+
             for tri in triangles_to_raster {
-                VGA.lock().fill_triangle(
-                    (tri.p[0].x as isize, tri.p[0].y as isize),
-                    (tri.p[1].x as isize, tri.p[1].y as isize),
-                    (tri.p[2].x as isize, tri.p[2].y as isize),
-                    tri.color,
-                );
+                let mut triangle_queue: Vec<Triangle> = Vec::new();
+                triangle_queue.push(tri);
+                let mut new_tris = 0;
+
+                for plane in 0..4 {
+                    let mut tris_to_draw = 0;
+                    while new_tris > 0 {
+                        let cur_tri = triangle_queue[0];
+                        new_tris -= 1;
+
+                        let clipped_tris = match plane {
+                            0 => Vector::clip_plane(
+                                Vector {
+                                    x: 0.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                Vector {
+                                    x: 0.0,
+                                    y: 1.0,
+                                    z: 0.0,
+                                    w: 0.0,
+                                },
+                                cur_tri,
+                            ),
+                            1 => Vector::clip_plane(
+                                Vector {
+                                    x: 0.0,
+                                    y: HEIGHT - 1.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                Vector {
+                                    x: 0.0,
+                                    y: -1.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                cur_tri,
+                            ),
+                            2 => Vector::clip_plane(
+                                Vector {
+                                    x: 0.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                Vector {
+                                    x: 1.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                cur_tri,
+                            ),
+                            3 => Vector::clip_plane(
+                                Vector {
+                                    x: WIDTH - 1.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                Vector {
+                                    x: -1.0,
+                                    y: 0.0,
+                                    z: 0.0,
+                                    w: 1.0,
+                                },
+                                cur_tri,
+                            ),
+                            _ => {
+                                panic!("Invalid plane");
+                            }
+                        };
+
+                        for clipped_tri in clipped_tris {
+                            if let Some(clipped_tri) = clipped_tri {
+                                triangle_queue[tris_to_draw] = clipped_tri;
+                                tris_to_draw += 1;
+                            }
+                        }
+                    }
+                }
+
+                for tri in triangle_queue {
+                    VGA.lock().fill_triangle(
+                        (tri.p[0].x as isize, tri.p[0].y as isize),
+                        (tri.p[1].x as isize, tri.p[1].y as isize),
+                        (tri.p[2].x as isize, tri.p[2].y as isize),
+                        tri.color,
+                    );
+                    VGA.lock().draw_triangle(
+                        (tri.p[0].x as isize, tri.p[0].y as isize),
+                        (tri.p[1].x as isize, tri.p[1].y as isize),
+                        (tri.p[2].x as isize, tri.p[2].y as isize),
+                        0x0F,
+                    )
+                }
             }
 
             // Swap buffers
