@@ -1,10 +1,12 @@
 use crate::gdt;
 use crate::hlt_loop;
 use crate::serial_println;
+use crate::IO::MOUSE;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin;
 use x86_64::instructions::port::Port;
+use x86_64::instructions::port::PortReadOnly;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
@@ -19,6 +21,7 @@ pub static PICS: spin::Mutex<ChainedPics> =
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard, //Defaults to Timer + 1 (33)
+    Mouse = PIC_1_OFFSET + 12,
 }
 
 impl InterruptIndex {
@@ -43,6 +46,7 @@ lazy_static! {
         }
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::Mouse.as_usize()].set_handler_fn(mouse_interrupt_handler);
         idt
     };
 }
@@ -99,5 +103,16 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
+    }
+}
+
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let mut port = PortReadOnly::new(0x60);
+    let packet: u8 = unsafe { port.read() };
+    MOUSE.lock().process_packet(packet);
+
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(InterruptIndex::Mouse.as_u8());
     }
 }

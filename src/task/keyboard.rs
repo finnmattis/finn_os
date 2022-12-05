@@ -1,6 +1,5 @@
 use crate::task::keyboard_util::{DecodedKey, Keyboard};
 use crate::{serial_print, serial_println};
-use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,

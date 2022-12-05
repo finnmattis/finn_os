@@ -5,9 +5,10 @@ use crate::task::keyboard::SCANCODE_QUEUE;
 use crate::task::keyboard_util::{KeyCode, KeyState};
 use crate::task::keyboard_util::{KeyEvent, Keyboard};
 use crate::timer::sleep;
+use crate::IO::MOUSE;
+use crate::{serial_print, serial_println};
 use alloc::vec::Vec;
 use core::f32::consts::PI;
-use crossbeam_queue::ArrayQueue;
 use lazy_static::lazy_static;
 use libm::tanf;
 
@@ -59,11 +60,9 @@ impl Renderer {
             w: 1.0,
         };
         let mut yaw: f32 = 0.0;
+        let mut pitch: f32 = 0.0;
 
-        SCANCODE_QUEUE
-            .try_init_once(|| ArrayQueue::new(100))
-            .expect("ScancodeQueue already initialized");
-        let queue = SCANCODE_QUEUE.try_get().unwrap();
+        let scancode_queue = SCANCODE_QUEUE.try_get().unwrap();
         let keyboard = Keyboard::new();
 
         //Don't want to register input on every press - this only works if you have a key repeat rate
@@ -72,15 +71,11 @@ impl Renderer {
         let mut a_pressed = false;
         let mut s_pressed = false;
         let mut d_pressed = false;
-        let mut left_pressed = false;
-        let mut right_pressed = false;
-        let mut up_pressed = false;
-        let mut down_pressed = false;
 
         let mut iterations: f32 = 0.0;
         loop {
             // Get user input
-            while let Ok(code) = queue.pop() {
+            while let Ok(code) = scancode_queue.pop() {
                 if let Ok(key_event) = keyboard.get_key_ev(code) {
                     match key_event {
                         KeyEvent {
@@ -131,86 +126,30 @@ impl Renderer {
                         } => {
                             d_pressed = false;
                         }
-                        KeyEvent {
-                            code: KeyCode::Numpad4,
-                            state: KeyState::Down,
-                        } => {
-                            left_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad4,
-                            state: KeyState::Up,
-                        } => {
-                            left_pressed = false;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad6,
-                            state: KeyState::Down,
-                        } => {
-                            right_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad6,
-                            state: KeyState::Up,
-                        } => {
-                            right_pressed = false;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad8,
-                            state: KeyState::Down,
-                        } => {
-                            up_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad8,
-                            state: KeyState::Up,
-                        } => {
-                            up_pressed = false;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad2,
-                            state: KeyState::Down,
-                        } => {
-                            down_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::Numpad2,
-                            state: KeyState::Up,
-                        } => {
-                            down_pressed = false;
-                        }
                         _ => {}
                     }
                 }
             }
 
             if w_pressed {
-                camera_vector.y += 1.0;
+                camera_vector = Vector::add(&camera_vector, &look_direction);
             }
             if a_pressed {
                 camera_vector.x += 1.0;
             }
             if s_pressed {
-                camera_vector.y -= 1.0;
+                camera_vector = Vector::sub(&camera_vector, &look_direction);
             }
             if d_pressed {
                 camera_vector.x -= 1.0;
             }
-            if up_pressed {
-                camera_vector = Vector::add(&camera_vector, &look_direction);
-            }
-            if down_pressed {
-                camera_vector = Vector::sub(&camera_vector, &look_direction);
-            }
-            if left_pressed {
-                yaw -= 0.05;
-            }
-            if right_pressed {
-                yaw += 0.05;
-            }
+
+            let (delta_x, delta_y) = MOUSE.lock().get_coords();
+            yaw += delta_x as f32 * 0.02;
+            pitch += delta_y as f32 * 0.02;
 
             //Compute world matrix (rotation and translation)
-            let theta: f32 = 1.0 * iterations;
+            // let theta: f32 = 1.0 * iterations;
             let theta: f32 = 0.0;
             let rotate_x_mat = Matrix4x4::create_rot_x(theta);
             let rotate_z_mat = Matrix4x4::create_rot_z(theta * 0.5);
@@ -233,7 +172,9 @@ impl Renderer {
                 z: 1.0,
                 w: 1.0,
             };
-            let camera_rot_mat = Matrix4x4::create_rot_y(yaw);
+            let camera_rot_mat_y = Matrix4x4::create_rot_y(yaw);
+            let camera_rot_mat_x = Matrix4x4::create_rot_x(pitch);
+            let camera_rot_mat = Matrix4x4::mult(&camera_rot_mat_y, &camera_rot_mat_x);
             look_direction = Matrix4x4::mult_vec(&camera_rot_mat, &target);
             target = Vector::add(&camera_vector, &look_direction);
 
@@ -348,14 +289,6 @@ impl Renderer {
                 z2.partial_cmp(&z1).unwrap()
             });
 
-            //top screen plane
-            let mut top_screen_plane = Vector {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                w: 1.0,
-            };
-
             for tri in triangles_to_raster {
                 let mut triangle_queue: Vec<Triangle> = Vec::new();
                 triangle_queue.push(tri);
@@ -429,7 +362,7 @@ impl Renderer {
                                 cur_tri,
                             ),
                             _ => {
-                                panic!("Invalid plane");
+                                unreachable!();
                             }
                         };
 
@@ -449,14 +382,41 @@ impl Renderer {
                         (tri.p[2].x as isize, tri.p[2].y as isize),
                         tri.color,
                     );
-                    VGA.lock().draw_triangle(
-                        (tri.p[0].x as isize, tri.p[0].y as isize),
-                        (tri.p[1].x as isize, tri.p[1].y as isize),
-                        (tri.p[2].x as isize, tri.p[2].y as isize),
-                        0x0F,
-                    )
+                    // WIREFRAME FOR DEBUGGING
+                    // VGA.lock().draw_triangle(
+                    //     (tri.p[0].x as isize, tri.p[0].y as isize),
+                    //     (tri.p[1].x as isize, tri.p[1].y as isize),
+                    //     (tri.p[2].x as isize, tri.p[2].y as isize),
+                    //     0x0F,
+                    // )
                 }
             }
+
+            let crosshair = [
+                0b000000111000000,
+                0b000000101000000,
+                0b000000101000000,
+                0b000000101000000,
+                0b000000111000000,
+                0b000000000000000,
+                0b111110000011111,
+                0b100010000010001,
+                0b111110000011111,
+                0b000000000000000,
+                0b000000111000000,
+                0b000000101000000,
+                0b000000101000000,
+                0b000000101000000,
+                0b000000111000000,
+            ];
+
+            //Draw crosshair
+            VGA.lock().draw_bitmap(
+                (WIDTH as usize / 2) - 6,
+                HEIGHT as usize / 2,
+                &crosshair,
+                0xF,
+            );
 
             // Swap buffers
             VGA.lock().swap_buffers();

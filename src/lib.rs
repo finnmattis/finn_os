@@ -9,6 +9,7 @@
 
 extern crate alloc;
 
+pub mod IO;
 pub mod allocator;
 pub mod gdt;
 pub mod graphics;
@@ -21,6 +22,7 @@ pub mod timer;
 
 use bootloader::BootInfo;
 use core::panic::PanicInfo;
+use crossbeam_queue::ArrayQueue;
 use graphics::VGA;
 use memory::BootInfoFrameAllocator;
 use x86_64::VirtAddr;
@@ -113,6 +115,12 @@ pub fn init(boot_info: &'static BootInfo) {
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+
+    crate::task::keyboard::SCANCODE_QUEUE
+        .try_init_once(|| ArrayQueue::new(100))
+        .expect("ScancodeQueue already initialized");
+
+    IO::init_mouse();
 
     //Graphics Initilization
     VGA.lock().setup();

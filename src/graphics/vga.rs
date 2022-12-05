@@ -6,9 +6,12 @@ use super::{
         SequencerRegisters,
     },
 };
-use crate::graphics::{
-    colors::DEFAULT_PALETTE,
-    lines::{Bresenham, Point},
+use crate::{
+    graphics::{
+        colors::DEFAULT_PALETTE,
+        lines::{Bresenham, Point},
+    },
+    serial_println,
 };
 use alloc::boxed::Box;
 use conquer_once::spin::Lazy;
@@ -176,7 +179,7 @@ impl Vga {
         }
     }
 
-    fn draw_character(&mut self, x: usize, y: usize, character: char, color: u8) {
+    pub fn draw_character(&mut self, x: usize, y: usize, character: char, color: u8) {
         let character = match font8x8::BASIC_FONTS.get(character) {
             Some(character) => character,
             // Default to a filled block if the character isn't found
@@ -295,6 +298,17 @@ impl Vga {
             let v4 = (x, y2);
             self.fill_bottom_triangle(v1, v2, v4, color);
             self.fill_top_triangle(v2, v4, v3, color);
+        }
+    }
+
+    pub fn draw_bitmap(&mut self, x: usize, y: usize, bitmap: &[usize], color: u8) {
+        for (row, byte) in bitmap.iter().enumerate() {
+            for bit in 0..64 {
+                match *byte & 1 << bit {
+                    0 => (),
+                    _ => self._set_pixel(x + bit, y + row, color),
+                }
+            }
         }
     }
 }
