@@ -67,7 +67,7 @@ impl ChainedPics {
         let mut wait_port: Port<u8> = Port::new(0x80);
         let mut wait = || wait_port.write(0);
 
-        //Interupt mask allows for certain IRQs to be disabled
+        // Interupt mask allows for certain IRQs to be disabled
         // Save our original interrupt masks, so we can restore them later.
         let saved_masks = self.read_masks();
 
@@ -173,7 +173,6 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
 
 #[test_case]
 fn test_breakpoint_exception() {
-    // invoke a breakpoint exception
     x86_64::instructions::interrupts::int3();
 }
 

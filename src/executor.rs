@@ -1,9 +1,40 @@
-use super::{Task, TaskId};
+use alloc::boxed::Box;
 use alloc::task::Wake;
 use alloc::{collections::BTreeMap, sync::Arc};
+use core::sync::atomic::{AtomicU64, Ordering};
 use core::task::{Context, Poll, Waker};
+use core::{future::Future, pin::Pin};
 use crossbeam_queue::ArrayQueue;
 use x86_64::instructions::interrupts::{self, enable_and_hlt};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct TaskId(u64);
+
+impl TaskId {
+    fn new() -> Self {
+        //Make sure each ID is unique
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        Self(NEXT_ID.fetch_add(1, Ordering::Relaxed)) //fetch_add atomically increases the value and returns the previous value in one atomic operation - this ensures each ID is returned once
+    }
+}
+
+pub struct Task {
+    id: TaskId,
+    future: Pin<Box<dyn Future<Output = ()>>>,
+}
+
+impl Task {
+    pub fn new(future: impl Future<Output = ()> + 'static) -> Self {
+        Self {
+            id: TaskId::new(), // new
+            future: Box::pin(future),
+        }
+    }
+
+    fn poll(&mut self, context: &mut Context) -> Poll<()> {
+        self.future.as_mut().poll(context)
+    }
+}
 
 struct TaskWaker {
     task_id: TaskId,

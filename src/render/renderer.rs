@@ -63,7 +63,9 @@ impl Renderer {
         //Don't want to register input on every press - this only works if you have a key repeat rate
         // Instead increment every frame based on the following variables
         let mut w_pressed = false;
+        let mut a_pressed = false;
         let mut s_pressed = false;
+        let mut d_pressed = false;
 
         let mut iterations: f32 = 0.0;
         loop {
@@ -84,6 +86,18 @@ impl Renderer {
                             w_pressed = false;
                         }
                         KeyEvent {
+                            code: KeyCode::A,
+                            state: KeyState::Down,
+                        } => {
+                            a_pressed = true;
+                        }
+                        KeyEvent {
+                            code: KeyCode::A,
+                            state: KeyState::Up,
+                        } => {
+                            a_pressed = false;
+                        }
+                        KeyEvent {
                             code: KeyCode::S,
                             state: KeyState::Down,
                         } => {
@@ -95,6 +109,18 @@ impl Renderer {
                         } => {
                             s_pressed = false;
                         }
+                        KeyEvent {
+                            code: KeyCode::D,
+                            state: KeyState::Down,
+                        } => {
+                            d_pressed = true;
+                        }
+                        KeyEvent {
+                            code: KeyCode::D,
+                            state: KeyState::Up,
+                        } => {
+                            d_pressed = false;
+                        }
                         _ => {}
                     }
                 }
@@ -105,6 +131,18 @@ impl Renderer {
             }
             if s_pressed {
                 camera_vector = Vector::sub(&camera_vector, &look_direction);
+            }
+            let opp_look_direction = Vector {
+                x: look_direction.z,
+                y: 0.0,
+                z: -look_direction.x,
+                w: 1.0,
+            };
+            if a_pressed {
+                camera_vector = Vector::add(&camera_vector, &opp_look_direction);
+            }
+            if d_pressed {
+                camera_vector = Vector::sub(&camera_vector, &opp_look_direction);
             }
 
             let (delta_x, delta_y) = MOUSE.lock().get_coords();

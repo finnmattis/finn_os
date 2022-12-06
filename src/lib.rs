@@ -10,14 +10,13 @@
 extern crate alloc;
 
 pub mod allocator;
+pub mod executor;
 pub mod gdt;
 pub mod graphics;
 pub mod interrupts;
 pub mod io;
 pub mod memory;
 pub mod render;
-pub mod serial;
-pub mod task;
 pub mod timer;
 
 use bootloader::BootInfo;

@@ -6,8 +6,8 @@
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use finn_os::executor::{Executor, Task};
 use finn_os::serial_print;
-use finn_os::task::{executor::Executor, Task};
 
 entry_point!(main);
 

@@ -8,8 +8,8 @@ extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use finn_os::executor::{Executor, Task};
 use finn_os::render::RENDERER;
-use finn_os::task::{executor::Executor, Task};
 
 entry_point!(kernel_main);
 
