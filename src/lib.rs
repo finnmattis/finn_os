@@ -9,11 +9,11 @@
 
 extern crate alloc;
 
-pub mod IO;
 pub mod allocator;
 pub mod gdt;
 pub mod graphics;
 pub mod interrupts;
+pub mod io;
 pub mod memory;
 pub mod render;
 pub mod serial;
@@ -116,11 +116,11 @@ pub fn init(boot_info: &'static BootInfo) {
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    crate::task::keyboard::SCANCODE_QUEUE
+    crate::io::SCANCODE_QUEUE
         .try_init_once(|| ArrayQueue::new(100))
         .expect("ScancodeQueue already initialized");
 
-    IO::init_mouse();
+    io::init_mouse();
 
     //Graphics Initilization
     VGA.lock().setup();

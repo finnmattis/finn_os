@@ -1,12 +1,8 @@
 use super::geometry::*;
 use super::objects::SHIP;
 use crate::graphics::VGA;
-use crate::task::keyboard::SCANCODE_QUEUE;
-use crate::task::keyboard_util::{KeyCode, KeyState};
-use crate::task::keyboard_util::{KeyEvent, Keyboard};
+use crate::io::{get_key_ev, KeyCode, KeyEvent, KeyState, MOUSE, SCANCODE_QUEUE};
 use crate::timer::sleep;
-use crate::IO::MOUSE;
-use crate::{serial_print, serial_println};
 use alloc::vec::Vec;
 use core::f32::consts::PI;
 use lazy_static::lazy_static;
@@ -63,20 +59,17 @@ impl Renderer {
         let mut pitch: f32 = 0.0;
 
         let scancode_queue = SCANCODE_QUEUE.try_get().unwrap();
-        let keyboard = Keyboard::new();
 
         //Don't want to register input on every press - this only works if you have a key repeat rate
         // Instead increment every frame based on the following variables
         let mut w_pressed = false;
-        let mut a_pressed = false;
         let mut s_pressed = false;
-        let mut d_pressed = false;
 
         let mut iterations: f32 = 0.0;
         loop {
             // Get user input
             while let Ok(code) = scancode_queue.pop() {
-                if let Ok(key_event) = keyboard.get_key_ev(code) {
+                if let Ok(key_event) = get_key_ev(code) {
                     match key_event {
                         KeyEvent {
                             code: KeyCode::W,
@@ -91,18 +84,6 @@ impl Renderer {
                             w_pressed = false;
                         }
                         KeyEvent {
-                            code: KeyCode::A,
-                            state: KeyState::Down,
-                        } => {
-                            a_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::A,
-                            state: KeyState::Up,
-                        } => {
-                            a_pressed = false;
-                        }
-                        KeyEvent {
                             code: KeyCode::S,
                             state: KeyState::Down,
                         } => {
@@ -114,18 +95,6 @@ impl Renderer {
                         } => {
                             s_pressed = false;
                         }
-                        KeyEvent {
-                            code: KeyCode::D,
-                            state: KeyState::Down,
-                        } => {
-                            d_pressed = true;
-                        }
-                        KeyEvent {
-                            code: KeyCode::D,
-                            state: KeyState::Up,
-                        } => {
-                            d_pressed = false;
-                        }
                         _ => {}
                     }
                 }
@@ -134,14 +103,8 @@ impl Renderer {
             if w_pressed {
                 camera_vector = Vector::add(&camera_vector, &look_direction);
             }
-            if a_pressed {
-                camera_vector.x += 1.0;
-            }
             if s_pressed {
                 camera_vector = Vector::sub(&camera_vector, &look_direction);
-            }
-            if d_pressed {
-                camera_vector.x -= 1.0;
             }
 
             let (delta_x, delta_y) = MOUSE.lock().get_coords();
@@ -185,7 +148,7 @@ impl Renderer {
             let mut triangles_to_raster: Vec<Triangle> = Vec::new();
             for tri in self.mesh.tris.iter() {
                 let mut new_tri = Triangle::new();
-                // Rotate in Z-Axis
+                // Rotatation and Translation
                 new_tri.p[0] = Matrix4x4::mult_vec(&world_mat, &tri.p[0]);
                 new_tri.p[1] = Matrix4x4::mult_vec(&world_mat, &tri.p[1]);
                 new_tri.p[2] = Matrix4x4::mult_vec(&world_mat, &tri.p[2]);
@@ -227,7 +190,7 @@ impl Renderer {
                     let front_cam = Vector {
                         x: 0.0,
                         y: 0.0,
-                        z: 1.0,
+                        z: 2.0,
                         w: 1.0,
                     };
                     let normal = Vector {
@@ -312,7 +275,7 @@ impl Renderer {
                                     x: 0.0,
                                     y: 1.0,
                                     z: 0.0,
-                                    w: 0.0,
+                                    w: 1.0,
                                 },
                                 cur_tri,
                             ),

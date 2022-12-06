@@ -79,7 +79,7 @@ pub struct MouseState {
     x: i16,
     y: i16,
 }
-
+#[allow(dead_code)]
 impl MouseState {
     /// Returns true if the left mouse button is currently down.
     pub fn left_button_down(&self) -> bool {
