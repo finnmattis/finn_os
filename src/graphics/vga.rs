@@ -10,7 +10,7 @@ use crate::graphics::{
     colors::DEFAULT_PALETTE,
     lines::{Bresenham, Point},
 };
-use alloc::boxed::Box;
+use alloc::{boxed::Box, string::String};
 use conquer_once::spin::Lazy;
 use core::ptr::copy_nonoverlapping;
 use font8x8::UnicodeFonts;
@@ -190,6 +190,16 @@ impl Vga {
                     _ => self._set_pixel(x + bit, y + row, color),
                 }
             }
+        }
+    }
+
+    pub fn draw_string(&mut self, x: usize, y: usize, string: String, color: u8) {
+        let string_length = string.chars().count();
+        let pixel_width = string_length * 8;
+        let scaled_x = x - (pixel_width / 2);
+
+        for (i, character) in string.chars().enumerate() {
+            self.draw_character(scaled_x + (i * 8), y, character, color);
         }
     }
 

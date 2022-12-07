@@ -9,7 +9,7 @@ extern crate alloc;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use finn_os::executor::{Executor, Task};
-use finn_os::render::RENDERER;
+use finn_os::render::render;
 
 entry_point!(kernel_main);
 
@@ -20,7 +20,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     test_main();
 
     let mut executor = Executor::new();
-    executor.spawn(Task::new(RENDERER.render()));
+    executor.spawn(Task::new(render()));
+
     executor.run();
 }
 /// This function is called on panic.

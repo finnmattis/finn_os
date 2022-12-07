@@ -2,4 +2,4 @@ mod geometry;
 mod objects;
 mod renderer;
 
-pub use renderer::RENDERER;
+pub use renderer::render;
