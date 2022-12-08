@@ -318,12 +318,12 @@ impl Matrix4x4 {
 
     pub(super) fn point_at(pos: &Vector, target: &Vector, up: &Vector) -> Self {
         // Calculate forward direction
-        let mut forward = Vector::sub(&target, &pos);
+        let mut forward = Vector::sub(target, pos);
         forward = Vector::norm(&forward);
 
         // Calculate up direction
-        let a = Vector::mult_scaler(&forward, &Vector::dot(&up, &forward));
-        let mut new_up = Vector::sub(&up, &a);
+        let a = Vector::mult_scaler(&forward, &Vector::dot(up, &forward));
+        let mut new_up = Vector::sub(up, &a);
         new_up = Vector::norm(&new_up);
 
         //Create right direction
@@ -361,7 +361,7 @@ impl Matrix4x4 {
         matrix.m[3][2] =
             -(m.m[3][0] * matrix.m[0][2] + m.m[3][1] * matrix.m[1][2] + m.m[3][2] * matrix.m[2][2]);
         matrix.m[3][3] = 1.0;
-        return matrix;
+        matrix
     }
 }
 
@@ -402,12 +402,12 @@ impl Mesh {
                 iterations += 1;
             }
 
-            return Vector {
+            Vector {
                 x: x.parse().unwrap(),
                 y: y.parse().unwrap(),
                 z: z.parse().unwrap(),
                 w: 1.0,
-            };
+            }
         }
 
         fn add_face(file: &[u8], mut cur_char: usize, verts: &Vec<Vector>) -> Vec<Triangle> {
@@ -426,7 +426,7 @@ impl Mesh {
                 //Generate number
 
                 let mut num = String::new();
-                while cur_char < file.len() && (file[cur_char] as char).is_digit(10) {
+                while cur_char < file.len() && (file[cur_char] as char).is_ascii_digit() {
                     num.push(file[cur_char] as char);
                     cur_char += 1;
                 }
@@ -465,9 +465,9 @@ impl Mesh {
 
         while cur_char < file.len() {
             if file[cur_char] as char == 'v' {
-                verts.push(add_vector(&file, cur_char + 1));
+                verts.push(add_vector(file, cur_char + 1));
             } else if file[cur_char] as char == 'f' {
-                tris.append(&mut add_face(&file, cur_char + 1, &verts));
+                tris.append(&mut add_face(file, cur_char + 1, &verts));
             }
             cur_char += 1;
         }
@@ -529,11 +529,11 @@ mod test {
         assert_eq!(v9.z, -3.0);
         //Test vector magnitude
         let v10 = Vector::mag(&v1);
-        assert_eq!(v10, 3.7416573867739413);
+        assert_eq!(v10, 3.741_657_5);
         //Test vector normalization
         let v11 = Vector::norm(&v1);
-        assert_eq!(v11.x, 0.2672612419124244);
-        assert_eq!(v11.y, 0.5345224838248488);
+        assert_eq!(v11.x, 0.267_261_24);
+        assert_eq!(v11.y, 0.534_522_5);
         assert_eq!(v11.z, 0.8017837);
     }
 

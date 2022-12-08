@@ -19,7 +19,7 @@ fn send_command(
 ) -> Result<(), &'static str> {
     unsafe {
         command_port.write(0xD4);
-        data_port.write(command as u8);
+        data_port.write(command);
         //0xFA is acknoledgement
         if data_port.read() != 0xFA {
             return Err("mouse did not respond to the command");

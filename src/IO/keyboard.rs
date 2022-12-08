@@ -8,7 +8,7 @@ pub static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 /// called by the keyboard interrupt handler - must not block or allocate.
 pub fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        if let Err(_) = queue.push(scancode) {
+        if queue.push(scancode).is_err() {
             serial_println!("WARNING: scancode queue full; dropping keyboard input");
         }
     } else {

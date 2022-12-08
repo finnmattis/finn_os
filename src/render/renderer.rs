@@ -197,7 +197,7 @@ pub async fn render() {
                 //How much light is hitting the triangle
                 let dp = Vector::dot(&normal, &light_direction);
                 // VGA default pallette sets 15 as white - 15-31 are grayscale colors
-                let brightness = (dp * 16 as f32) as u8;
+                let brightness = (dp * 16_f32) as u8;
                 new_tri.color = brightness + 15;
 
                 //Convert world space --> view space
@@ -245,12 +245,12 @@ pub async fn render() {
                         clipped_tri.p[2].y *= -1.0;
 
                         // Scale into view
-                        clipped_tri.p[0].x += (clipped_tri.p[0].x + 1.0) * 0.5 * WIDTH as f32;
-                        clipped_tri.p[0].y += (clipped_tri.p[0].y + 1.0) * 0.5 * HEIGHT as f32;
-                        clipped_tri.p[1].x += (clipped_tri.p[1].x + 1.0) * 0.5 * WIDTH as f32;
-                        clipped_tri.p[1].y += (clipped_tri.p[1].y + 1.0) * 0.5 * HEIGHT as f32;
-                        clipped_tri.p[2].x += (clipped_tri.p[2].x + 1.0) * 0.5 * WIDTH as f32;
-                        clipped_tri.p[2].y += (clipped_tri.p[2].y + 1.0) * 0.5 * HEIGHT as f32;
+                        clipped_tri.p[0].x += (clipped_tri.p[0].x + 1.0) * 0.5 * WIDTH;
+                        clipped_tri.p[0].y += (clipped_tri.p[0].y + 1.0) * 0.5 * HEIGHT;
+                        clipped_tri.p[1].x += (clipped_tri.p[1].x + 1.0) * 0.5 * WIDTH;
+                        clipped_tri.p[1].y += (clipped_tri.p[1].y + 1.0) * 0.5 * HEIGHT;
+                        clipped_tri.p[2].x += (clipped_tri.p[2].x + 1.0) * 0.5 * WIDTH;
+                        clipped_tri.p[2].y += (clipped_tri.p[2].y + 1.0) * 0.5 * HEIGHT;
 
                         triangles_to_raster.push(clipped_tri);
                     }

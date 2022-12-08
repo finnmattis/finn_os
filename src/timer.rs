@@ -55,9 +55,9 @@ impl Stream for TickStream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<usize>> {
         if let Some(i) = TICKS.lock().handle() {
-            return Poll::Ready(Some(i));
+            Poll::Ready(Some(i))
         } else {
-            WAKER.register(&cx.waker());
+            WAKER.register(cx.waker());
             Poll::Pending
         }
     }

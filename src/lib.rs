@@ -32,7 +32,7 @@ fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
 }
 
 pub trait Testable {
-    fn run(&self) -> ();
+    fn run(&self);
 }
 
 impl<T> Testable for T
