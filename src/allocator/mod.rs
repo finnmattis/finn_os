@@ -5,18 +5,15 @@ use x86_64::{
     VirtAddr,
 };
 
-use linked_list_allocator::LockedHeap;
+use self::linked_list::LinkedListAllocator;
 
-pub mod bump;
-pub mod fixed_size_block;
 pub mod linked_list;
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
+pub const HEAP_SIZE: usize = 100 * 16384; // 1600 KiB
 
 #[global_allocator]
-// static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static ALLOCATOR: Locked<LinkedListAllocator> = Locked::new(LinkedListAllocator::new());
 
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,

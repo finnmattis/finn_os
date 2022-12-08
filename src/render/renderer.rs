@@ -130,8 +130,7 @@ pub async fn render() {
         pitch += delta_y as f32 * 0.02;
 
         //Compute world matrix (rotation and translation)
-        // let theta: f32 = 1.0 * iterations;
-        let theta: f32 = 0.0;
+        let theta: f32 = 1.0 * iterations;
         let rotate_x_mat = Matrix4x4::create_rot_x(theta);
         let rotate_z_mat = Matrix4x4::create_rot_z(theta * 0.5);
         let trans_mat = Matrix4x4::create_translation(0.0, 0.0, 10.0);
