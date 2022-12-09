@@ -19,7 +19,8 @@ pub mod memory;
 pub mod render;
 pub mod timer;
 
-use bootloader::BootInfo;
+use alloc::vec;
+use bootloader_api::BootInfo;
 use core::panic::PanicInfo;
 use crossbeam_queue::ArrayQueue;
 use graphics::VGA;
@@ -110,17 +111,16 @@ pub fn init(boot_info: &'static BootInfo) {
     x86_64::instructions::interrupts::enable();
 
     //Memory Initilization
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let phys_mem_offset = if let Some(offset) = boot_info.physical_memory_offset.as_ref() {
+        VirtAddr::new(offset.clone())
+    } else {
+        VirtAddr::new(0)
+    };
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_regions) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    crate::io::SCANCODE_QUEUE
-        .try_init_once(|| ArrayQueue::new(100))
-        .expect("ScancodeQueue already initialized");
-
-    io::init_mouse();
-
-    //Graphics Initilization
-    VGA.lock().setup();
+    // //IO Initilization
+    // io::init_mouse();
+    // VGA.lock().setup();
 }

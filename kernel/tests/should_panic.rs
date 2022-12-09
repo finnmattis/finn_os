@@ -3,7 +3,7 @@
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use finn_os::{exit_qemu, serial_print, serial_println, QemuExitCode};
+use kernel::{exit_qemu, serial_print, serial_println, QemuExitCode};
 
 entry_point!(main);
 fn main(_boot_info: &'static BootInfo) -> ! {

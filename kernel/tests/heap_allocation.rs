@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(finn_os::test_runner)]
+#![test_runner(kernel::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
@@ -9,12 +9,12 @@ extern crate alloc;
 use alloc::{boxed::Box, vec};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use finn_os::allocator::HEAP_SIZE;
+use kernel::allocator::HEAP_SIZE;
 
 entry_point!(main);
 
 fn main(boot_info: &'static BootInfo) -> ! {
-    finn_os::init(boot_info);
+    kernel::init(boot_info);
 
     test_main();
     loop {}
@@ -22,7 +22,7 @@ fn main(boot_info: &'static BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    finn_os::test_panic_handler(info)
+    kernel::test_panic_handler(info)
 }
 
 #[test_case]
